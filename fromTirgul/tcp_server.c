@@ -100,25 +100,26 @@ int main() {
             return -1;
         }
         
-        printf("Received: %s", buffer);
+        // printf("Received: %s", buffer);
+        printf("Received seqment\n");
 
         // Reply to client
-        char *message = "Welcome to our TCP-server\n";
-        int messageLen = strlen(message) + 1;
+        // char *message = "Welcome to our TCP-server\n";
+        // int messageLen = strlen(message) + 1;
 
-        int bytesSent = send(clientSocket, message, messageLen, 0);
-        if (bytesSent == -1) {
-            printf("send() failed with error code : %d", errno);
-            close(listeningSocket);
-            close(clientSocket);
-            return -1;
-        } else if (bytesSent == 0) {
-            printf("peer has closed the TCP connection prior to send().\n");
-        } else if (bytesSent < messageLen) {
-            printf("sent only %d bytes from the required %d.\n", messageLen, bytesSent);
-        } else {
-            printf("message was successfully sent.\n");
-        }
+        // int bytesSent = send(clientSocket, message, messageLen, 0);
+        // if (bytesSent == -1) {
+        //     printf("send() failed with error code : %d", errno);
+        //     close(listeningSocket);
+        //     close(clientSocket);
+        //     return -1;
+        // } else if (bytesSent == 0) {
+        //     printf("peer has closed the TCP connection prior to send().\n");
+        // } else if (bytesSent < messageLen) {
+        //     printf("sent only %d bytes from the required %d.\n", messageLen, bytesSent);
+        // } else {
+        //     printf("message was successfully sent.\n");
+        // }
     }
 
     close(listeningSocket);
