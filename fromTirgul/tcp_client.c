@@ -192,6 +192,57 @@ int main()
         }
     }
 
+    clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    if (clientSocket == -1) {
+        printf("Could not create socket : %d", errno);
+        return -1;
+    }
+
+    // "sockaddr_in" is the "derived" from sockaddr structure
+    // used for IPv4 communication. For IPv6, use sockaddr_in6
+    //
+    struct sockaddr_in serverAddress;
+    memset(&serverAddress, 0, sizeof(serverAddress));
+
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_port = htons(SERVER_IP_ADDRESS);                                              // (5001 = 0x89 0x13) little endian => (0x13 0x89) network endian (big endian)
+    int rval = inet_pton(AF_INET, (const char *)SERVER_IP_ADDRESS, &serverAddress.sin_addr);  // convert IPv4 and IPv6 addresses from text to binary form
+    // e.g. 127.0.0.1 => 0x7f000001 => 01111111.00000000.00000000.00000001 => 2130706433
+    if (rval <= 0) {
+        printf("inet_pton() failed");
+        return -1;
+    }
+
+    // Make a connection to the server with socket SendingSocket.
+    int connectResult = connect(clientSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+    if (connectResult == -1) {
+        printf("connect() failed with error code : %d", errno);
+        // cleanup the socket;
+        close(clientSocket);
+        return -1;
+    }
+
+    printf("connected to server\n");
+
+    // Sends some data to server
+    char buffer[SIZE] = {'\0'};
+    char message[] = "Hello, from the Client\n";
+    int messageLen = strlen(message) + 1;
+    
+    int bytesSent = send(clientSocket, message, messageLen, 0);
+
+    if (bytesSent == -1) {
+        printf("send() failed with error code : %d", errno);
+    } else if (bytesSent == 0) {
+        printf("peer has closed the TCP connection prior to send().\n");
+    } else if (bytesSent < messageLen) {
+        printf("sent only %d bytes from the required %d.\n", messageLen, bytesSent);
+    } else {
+        printf("message was successfully sent.\n");
+    }
+
+
 
 	return 0; 
 } 
