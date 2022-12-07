@@ -19,35 +19,35 @@ static int count = 0;
 
 int main(int argc, char const *argv[])
 {
-    int serverSocket = -1;
-    struct sockaddr_in serverAddress, clientAddress;
-    int enableReuse = 1;
-    socklen_t clientAddressLen = sizeof(clientAddress);
-    int clientSocket = -1;
-    socklen_t len;
-
-    char buffer[SIZE] = {0};
+    // --------------------------1------------------------------
+    // Open the listening socket(server) + test
 
     // Creating socket
     printf("create socket\n");
+    int serverSocket = -1;
     if ((serverSocket = socket(AF_INET, SOCK_STREAM, 0)) == -1)
     {
         printf("Could not create server socket : %d", errno);
+        return -1;
     }
 
     // Reuse the address and the port, if the server socket on was closed
     // and remains for 45 seconds in TIME-WAIT state till the final removal.
     // Prevents error such as: “address already in use”.
-    printf("setsockopt \n");
+    int enableReuse = 1;
     if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &enableReuse, sizeof(enableReuse)) < 0)
     {
         printf("setsockopt() failed with error code : %d", errno);
+        return -1;
     }
 
-    bzero(&serverAddress, sizeof(serverAddress)); // memset(&serverAddress, 0, sizeof(serverAddress));
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
-    serverAddress.sin_port = htons(SERVER_PORT);
+    // "sockaddr_in" is the "derived" from sockaddr structure used for IPv4
+    struct sockaddr_in serverAddress;
+    memset(&serverAddress, 0, sizeof(serverAddress)); // reseting all memory in serveradress to 0
+    serverAddress.sin_family = AF_INET; // setting for ipv4
+    serverAddress.sin_addr.s_addr = INADDR_ANY; // any IP at this port (Address to accept any incoming messages)
+    serverAddress.sin_port = htons(SERVER_PORT); // network order (makes byte order consistent)
+
 
     // Bind the socket to the port with any IP at this port
     printf("bind\n");
@@ -68,17 +68,21 @@ int main(int argc, char const *argv[])
         return -1;
     }
 
+    struct sockaddr_in clientAddress;
+    socklen_t clientAddressLen = sizeof(clientAddress);
+    int clientSocket = -1;
+    socklen_t len;
     int bytesReceived = 0;
     int i = 0;
-
-    char bufcc[256];
-    len = sizeof(bufcc);
-    if (getsockopt(serverSocket, IPPROTO_TCP, TCP_CONGESTION, bufcc, &len) != 0)
+    char buffer[SIZE] = {0};
+    char ccBuffer[256];
+    len = sizeof(ccBuffer);
+    if (getsockopt(serverSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, &len) != 0)
     {
         perror("getsockopt");
         return -1;
     }
-    printf("Current CC: %s\n", bufcc);
+    printf("Current CC: %s\n", ccBuffer);
     while (1)
     {
         count = 0;
@@ -185,7 +189,7 @@ int main(int argc, char const *argv[])
 
             // printf("%ld",clock());
             clock_t begin = clock();
-            time_t t = time(0);
+            time_t start = time(0);
             int tot = 0;
             while ((bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0)) > 0)
             {
@@ -196,11 +200,11 @@ int main(int argc, char const *argv[])
             clock_t end = clock();
             double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
             count++;
-            time_t e = time(0);
-            total += e - t;
+            time_t endLocal = time(0);
+            total += endLocal - start;
             totalt += time_spent;
             printf("Received byte: %d in %f seconds \t", tot, time_spent);
-            printf("(real time in about %ld seconds) \n", e - t);
+            printf("(real time in about %ld seconds) \n", endLocal - start);
 
             if (bytesReceived < 0)
                 perror("can't recive file!");
@@ -210,6 +214,7 @@ int main(int argc, char const *argv[])
         }
         printf("total new avarage time =  %f\n", totalt / count);
         printf("total new general time = about %ld seconds\n", total);
+        
     }
     return 0;
 }
