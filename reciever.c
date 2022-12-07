@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
 #include <signal.h>
+#include <errno.h>
 
 typedef struct timeval time;
 
@@ -22,6 +23,7 @@ double getAmountOfTime(time starting_time, time ending_time)
 }
 #define PORT 5093
 #define SIZE 65536
+#define SERVER_IP_ADDRESS "127.0.0.1"
 
 int main()
 {
@@ -54,7 +56,7 @@ int main()
         char ccBuffer[256];
         // CUBIC
         printf("Current Congestion Control -> Cubic\n");
-        printf("---------------------------------------------------------------------------------------\n");
+        printf("----------------------------------------------------------------\n");
         for (int i = 0; i < 5; i++)
         {
             if (listen(MeasureSocket, 1) == -1)
@@ -86,15 +88,31 @@ int main()
             printf("Message recieved: %d \n", amountReceived);
             totalTime += current_time;
             memset(&ccBuffer, 0, sizeof(ccBuffer));
-            if (i != 4)
-            {
-                close(SenderSocket);
-            }
+            close(SenderSocket);
         }
 
         // printf("Total receiving time with Cubic: %f seconds\n", totalTime / 1000000);
         // printf("Average receiving time with Cubic: %f seconds\n", totalTime / 5000000);
-        printf("---------------------------------------------------------------------------------------\n");
+        printf("-----------------------------------------------------------------------\n");
+        struct sockaddr_in serverAddress;
+        memset(&serverAddress, 0, sizeof(serverAddress));
+        serverAddress.sin_family = AF_INET;
+        serverAddress.sin_port = htons(PORT); 
+        int rval = inet_pton(AF_INET, (const char *)SERVER_IP_ADDRESS, &serverAddress.sin_addr);  // convert IPv4 and IPv6 addresses from text to binary form
+        if (rval <= 0) {
+            printf("inet_pton() failed");
+            return -1;
+        }
+
+        // Make a connection to the server with socket SendingSocket.
+        int connectResult = connect(SenderSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+        if (connectResult == -1) {
+            printf("connect() failed with error code : %d", errno);
+            // cleanup the socket;
+            close(SenderSocket);
+            return -1;
+        }
+
         // int a = 207083353;
         // int b = 206391054;
         // int c = a ^ b;

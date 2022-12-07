@@ -67,28 +67,26 @@ int main()
             }
             clock_t end = clock();
             totalTime += (float)(end - start);
-            if (i != 4) {
-                close(SenderSocket);
-            }            
+            close(SenderSocket);
             fclose(file);
         }
         printf("Total sending time with Cubic: %f seconds\n", totalTime / 1000000);
         printf("Average sending time with Cubic: %f seconds\n", totalTime / 5000000);
 
         // add section to recieve msg
-        // int rval = inet_pton(AF_INET, (const char *)SERVER_IP_ADDRESS, &server_addr.sin_addr);  // convert IPv4 and IPv6 addresses from text to binary form
-        // if (rval <= 0) {
-        //     printf("inet_pton() failed");
-        //     return -1;
-        // }
-        // // Make a connection to the server with socket SendingSocket.
-        // int connectResult = connect(SenderSocket, (struct sockaddr *)&server_addr, sizeof(server_addr));
-        // if (connectResult == -1) {
-        //     printf("connect() failed with error code : %d", errno);
-        //     // cleanup the socket;
-        //     close(sock);
-        //     return -1;
-        // }
+        int rval = inet_pton(AF_INET, (const char *)SERVER_IP_ADDRESS, &server_addr.sin_addr);  // convert IPv4 and IPv6 addresses from text to binary form
+        if (rval <= 0) {
+            printf("inet_pton() failed");
+            return -1;
+        }
+        // Make a connection to the server with socket SendingSocket.
+        int connectResult = connect(SenderSocket, (struct sockaddr *)&server_addr, sizeof(server_addr));
+        if (connectResult == -1) {
+            printf("connect() failed with error code : %d", errno);
+            // cleanup the socket;
+            close(SenderSocket);
+            return -1;
+        }
 
         // Receive data from server
         char bufferReply[65536] = {'\0'};
