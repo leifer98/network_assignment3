@@ -13,6 +13,7 @@ int main()
 {
     // create a socket
     int SenderSocket;
+    FILE *file; 
     char *SERVER_IP_ADDRESS = "127.0.0.1";
     int BUFFER_SIZE = 65536;
     struct sockaddr_in server_addr;
@@ -51,7 +52,7 @@ int main()
             // fseek(file, 0, SEEK_SET); // seek back to beginning of file
             
             clock_t start = clock();
-            char data[1024];
+            char data[BUFFER_SIZE];
             while ((fread(data, 1, sizeof data, file)) > 0)
             {
                 if (send(SenderSocket, data, sizeof(data), 0) == -1)
@@ -90,7 +91,7 @@ int main()
         // }
 
         // Receive data from server
-        char bufferReply[1024] = {'\0'};
+        char bufferReply[65536] = {'\0'};
         int bytesReceived = recv(SenderSocket, bufferReply, BUFFER_SIZE, 0);
         if (bytesReceived == -1) {
             printf("recv() failed with error code : %d", errno);
@@ -138,7 +139,7 @@ int main()
                 perror("ERROR! file opening has failed!");
             }
             clock_t start = clock();
-            char data[1024];
+            char data[BUFFER_SIZE];
             while ((fread(data, 1, sizeof data, file)) > 0)
             {
                 if (send(SenderSocket, data, sizeof(data), 0) == -1)
@@ -177,7 +178,6 @@ int main()
         }
 
         // Sends some data to server
-        char buffer[1024] = {'\0'};
         int messageLen = strlen(message) + 1;
         
         int bytesSent = send(SenderSocket, message, messageLen, 0);
