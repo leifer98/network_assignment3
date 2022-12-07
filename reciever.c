@@ -92,14 +92,13 @@ int main()
         // printf("Total receiving time with Cubic: %f seconds\n", totalTime / 1000000);
         // printf("Average receiving time with Cubic: %f seconds\n", totalTime / 5000000);
         printf("---------------------------------------------------------------------------------------\n");
-        int a = 207083353;
-        int b = 206391054;
-        int c = a ^ b;
-        int messageLen = len(c);
-        printf("sending client %d\n", c);
-        printf("---------------------------------------------------------------------------------------\n");
-
-        int bytesSent = send(SenderSocket, c, messageLen, 0);
+        // int a = 207083353;
+        // int b = 206391054;
+        // int c = a ^ b;
+        //10 == msg length
+        char *message = "abcd";
+        int messageLen = strlen(message) + 1;
+        int bytesSent = send(SenderSocket, message, messageLen, 0);
         close(SenderSocket);
 
         if (bytesSent == -1)
@@ -195,7 +194,7 @@ int main()
         {
             if (bufferReply == 'y')
             {
-                printf("received %d bytes from server: %c\n", bytesReceived, bufferReply);
+                printf("received %d bytes from server: %s\n", bytesReceived, bufferReply);
             }
             else
             {
