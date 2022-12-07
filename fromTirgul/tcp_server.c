@@ -160,24 +160,21 @@ int main(int argc, char const *argv[])
 
         // change CC algorithm to reno
         printf("Changing CC algorithm\n");
-        strcpy(buffer, "reno");
-        len = sizeof(buffer);
-        if (setsockopt(serverSocket, IPPROTO_TCP, TCP_CONGESTION, buffer, len) != 0)
+        strcpy(ccBuffer, "reno");
+        len = sizeof(ccBuffer);
+        if (setsockopt(serverSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, len) != 0)
         {
             perror("setsockopt");
             return -1;
         }
-        if (getsockopt(serverSocket, IPPROTO_TCP, TCP_CONGESTION, buffer, &len) != 0)
+        if (getsockopt(serverSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, &len) != 0)
         {
             perror("getsockopt");
             return -1;
         }
-        printf("New CC: %s\n", buffer);
+        printf("New CC: %s\n", ccBuffer);
 
         bytesReceived = 0;
-        total = 0;
-        totalt = 0;
-        count = 0;
         i = 0;
         while (i < 5)
         {
@@ -188,7 +185,6 @@ int main(int argc, char const *argv[])
                 return -1;
             }
 
-            // printf("%ld",clock());
             clock_t begin = clock();
             time_t start = time(0);
             int tot = 0;
@@ -196,8 +192,6 @@ int main(int argc, char const *argv[])
             {
                 tot += bytesReceived;
             }
-            // bytesReceived=0;
-            // printf("%ld",clock());
             clock_t end = clock();
             double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
             count++;
