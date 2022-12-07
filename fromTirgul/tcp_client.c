@@ -155,11 +155,11 @@ int main()
         //ending sending 5 duplicates
         // USER DECISION
         printf("Would you like to send the file again? Y/N");
-        scanf("%c", &answer);
+        scanf("%s", &answer);
         while (answer != 'Y' && answer != 'N')
         {
             printf("Wrong input, Would you like to send the file again? Y/N\n");
-            scanf("%c", &answer);
+            scanf("%s", &answer);
             printf("\n");
         }
         // doesnt work yet
@@ -180,8 +180,8 @@ int main()
         // }
     }
 
+
     // Sends some data to server
-    char buffer[SIZE] = {'\0'};
     char message[] = "FINISHED";
     int messageLen = strlen(message) + 1;
     
@@ -194,7 +194,7 @@ int main()
     } else if (bytesSent < messageLen) {
         printf("sent only %d bytes from the required %d.\n", messageLen, bytesSent);
     } else {
-        printf("message was successfully sent.\n");
+        printf("message with %d bytes was successfully sent.\n", bytesSent);
     }
     close(clientSocket);
 

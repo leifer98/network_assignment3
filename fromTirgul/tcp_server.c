@@ -44,10 +44,9 @@ int main(int argc, char const *argv[])
     // "sockaddr_in" is the "derived" from sockaddr structure used for IPv4
     struct sockaddr_in serverAddress;
     memset(&serverAddress, 0, sizeof(serverAddress)); // reseting all memory in serveradress to 0
-    serverAddress.sin_family = AF_INET; // setting for ipv4
-    serverAddress.sin_addr.s_addr = INADDR_ANY; // any IP at this port (Address to accept any incoming messages)
-    serverAddress.sin_port = htons(SERVER_PORT); // network order (makes byte order consistent)
-
+    serverAddress.sin_family = AF_INET;               // setting for ipv4
+    serverAddress.sin_addr.s_addr = INADDR_ANY;       // any IP at this port (Address to accept any incoming messages)
+    serverAddress.sin_port = htons(SERVER_PORT);      // network order (makes byte order consistent)
 
     // Bind the socket to the port with any IP at this port
     printf("bind\n");
@@ -88,11 +87,13 @@ int main(int argc, char const *argv[])
         count = 0;
         total = 0;
         totalt = 0;
+        memset(&clientAddress, 0, sizeof(clientAddress));
+        clientAddressLen = sizeof(clientAddress);
+        clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddress, &clientAddressLen);
         while (i < 5)
         {
-            memset(&clientAddress, 0, sizeof(clientAddress));
-            clientAddressLen = sizeof(clientAddress);
-            clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddress, &clientAddressLen);
+            printf("0Current i : %d\n", i);
+
             if (clientSocket == -1)
             {
                 printf("accept failed with error code : %d", errno);
@@ -118,12 +119,14 @@ int main(int argc, char const *argv[])
             count++;
             total += e - t;
             totalt += time_spent;
+            printf("1Current i : %d\n", i);
+
             printf("Received byte: %d in %f seconds \t", tot, time_spent);
             printf("(real time in about %ld seconds) \n", e - t);
             if (bytesReceived < 0)
                 perror("Receiving");
             i++;
-            close(clientSocket);
+            printf("2Current i : %d\n", i);
         }
         printf("total avarage time =  %f\n", totalt / count);
         printf("total general time = about %ld seconds\n", total);
@@ -131,7 +134,8 @@ int main(int argc, char const *argv[])
         // sending authentication
         int a = 207083353;
         int b = 206391054;
-        char *message = ("%d", a ^ b);
+        // int c = ("%d", a ^ b);
+        char *message = "abcd";
         int messageLen = strlen(message) + 1;
         int bytesSent = send(clientSocket, message, messageLen, 0);
         if (bytesSent == -1)
@@ -177,9 +181,6 @@ int main(int argc, char const *argv[])
         i = 0;
         while (i < 5)
         {
-            memset(&clientAddress, 0, sizeof(clientAddress));
-            clientAddressLen = sizeof(clientAddress);
-            clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddress, &clientAddressLen);
             if (clientSocket == -1)
             {
                 printf("accept failed with error code : %d", errno);
@@ -210,11 +211,11 @@ int main(int argc, char const *argv[])
                 perror("can't recive file!");
 
             i++;
-            close(clientSocket);
         }
+        close(clientSocket);
+
         printf("total new avarage time =  %f\n", totalt / count);
         printf("total new general time = about %ld seconds\n", total);
-        
     }
     return 0;
 }
