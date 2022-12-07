@@ -69,6 +69,7 @@ int main()
 
             int amountReceived = 0;
             gettimeofday(&starting_time, NULL); // start counting
+            printf("\n");
             while ((errCheck = recv(SenderSocket, &ccBuffer, sizeof(ccBuffer), 0) > 0))
             {
                 if (errCheck < 0)
@@ -76,11 +77,13 @@ int main()
                     perror("Error: ");
                 }
                 amountReceived += errCheck;
+                // printf("check looping : %d, with i=%d\t", amountReceived,i);
             }
+            printf("\n");
             gettimeofday(&ending_time, NULL); // stop counting
             // printf("%d\n", KbytesRec);
             double current_time = getAmountOfTime(starting_time, ending_time);
-            // printf("Message recieved: %s \n", buffer);
+            printf("Message recieved: %d \n", amountReceived);
             totalTime += current_time;
             memset(&ccBuffer, 0, sizeof(ccBuffer));
             if (i != 4)
