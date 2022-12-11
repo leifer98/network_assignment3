@@ -1,235 +1,128 @@
+/*
+    TCP/IP-server
+*/
+
 #include <stdio.h>
-#include <stdlib.h>
-#include <strings.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <sys/time.h>
-#include <signal.h>
+
+// Linux and other UNIXes
 #include <errno.h>
+#include <netinet/in.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-typedef struct timeval time;
+#define SERVER_PORT 5060  // The port that the server listens
+#define BUFFER_SIZE 1024
 
-// calculate the amount of time it takes to get the packets.
-double getAmountOfTime(time starting_time, time ending_time)
-{
-    double total_time = ((ending_time.tv_sec * 1000000 + ending_time.tv_usec) -
-                         (starting_time.tv_sec * 1000000 + starting_time.tv_usec));
-    return total_time;
-}
-#define PORT 5093
-#define SIZE 65536
-#define SERVER_IP_ADDRESS "127.0.0.1"
+int main() {
+    // signal(SIGPIPE, SIG_IGN);  // on linux to prevent crash on closing socket
 
-int main()
-{
+    // Open the listening (server) socket
+    int listeningSocket = -1;
+    listeningSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); // 0 means default protocol for stream sockets (Equivalently, IPPROTO_TCP)
+    if (listeningSocket == -1) {
+        printf("Could not create listening socket : %d", errno);
+        return 1;
+    }
 
-    time starting_time, ending_time;
-    int MeasureSocket, SenderSocket, errCheck;
-    double totalTime = 0;
+    // Reuse the address if the server socket on was closed
+    // and remains for 45 seconds in TIME-WAIT state till the final removal.
+    //
+    int enableReuse = 1;
+    int ret = setsockopt(listeningSocket, SOL_SOCKET, SO_REUSEADDR, &enableReuse, sizeof(int));
+    if (ret < 0) {
+        printf("setsockopt() failed with error code : %d", errno);
+        return 1;
+    }
 
-    // create a socket for measurement.
-    MeasureSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (MeasureSocket < 0)
-    {
-        printf("ERROR! Socket creation failed\n");
+    // "sockaddr_in" is the "derived" from sockaddr structure
+    // used for IPv4 communication. For IPv6, use sockaddr_in6
+    //
+    struct sockaddr_in serverAddress;
+    memset(&serverAddress, 0, sizeof(serverAddress));
+
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_addr.s_addr = INADDR_ANY; // any IP at this port (Address to accept any incoming messages)
+    serverAddress.sin_port = htons(SERVER_PORT);  // network order (makes byte order consistent)
+
+    // Bind the socket to the port with any IP at this port
+    int bindResult = bind(listeningSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+    if (bindResult == -1) {
+        printf("Bind failed with error code : %d", errno);
+        // close the socket
+        close(listeningSocket);
         return -1;
     }
 
-    struct sockaddr_in address;
-    address.sin_family = AF_INET;
-    address.sin_port = htons(PORT);
-    address.sin_addr.s_addr = INADDR_ANY; // anyone can connect.
+    printf("Bind() success\n");
 
-    errCheck = bind(MeasureSocket, (struct sockaddr *)&address, sizeof(address));
-    if (errCheck < 0)
-    {
-        printf("ERROR! Binding address to socket failed.\n");
+    // Make the socket listening; actually mother of all client sockets.
+    // 500 is a Maximum size of queue connection requests
+    // number of concurrent connections
+    int listenResult = listen(listeningSocket, 3);
+    if (listenResult == -1) {
+        printf("listen() failed with error code : %d", errno);
+        // close the socket
+        close(listeningSocket);
         return -1;
     }
-    while (1)
-    {
-        char ccBuffer[256];
-        // CUBIC
-        printf("Current Congestion Control -> Cubic\n");
-        printf("----------------------------------------------------------------\n");
-        for (int i = 0; i < 5; i++)
-        {
-            if (listen(MeasureSocket, 1) == -1)
-            {
-                printf("ERROR! set listening failed.\n");
-            }
-            SenderSocket = accept(MeasureSocket, NULL, NULL);
-            if (SenderSocket == -1)
-            {
-                perror("ERROR! accepting client failed.\n");
-            }
 
-            int amountReceived = 0;
-            gettimeofday(&starting_time, NULL); // start counting
-            printf("\n");
-            while ((errCheck = recv(SenderSocket, &ccBuffer, sizeof(ccBuffer), 0) > 0))
-            {
-                if (errCheck < 0)
-                {
-                    perror("Error: ");
-                }
-                amountReceived += errCheck;
-                // printf("check looping : %d, with i=%d\t", amountReceived,i);
-            }
-            printf("\n");
-            gettimeofday(&ending_time, NULL); // stop counting
-            // printf("%d\n", KbytesRec);
-            double current_time = getAmountOfTime(starting_time, ending_time);
-            printf("Message recieved: %d \n", amountReceived);
-            totalTime += current_time;
-            memset(&ccBuffer, 0, sizeof(ccBuffer));
-            close(SenderSocket);
-        }
+    // Accept and incoming connection
+    printf("Waiting for incoming TCP-connections...\n");
+    struct sockaddr_in clientAddress;  //
+    socklen_t clientAddressLen = sizeof(clientAddress);
 
-        // printf("Total receiving time with Cubic: %f seconds\n", totalTime / 1000000);
-        // printf("Average receiving time with Cubic: %f seconds\n", totalTime / 5000000);
-        printf("-----------------------------------------------------------------------\n");
-        struct sockaddr_in serverAddress;
-        memset(&serverAddress, 0, sizeof(serverAddress));
-        serverAddress.sin_family = AF_INET;
-        serverAddress.sin_port = htons(PORT); 
-        int rval = inet_pton(AF_INET, (const char *)SERVER_IP_ADDRESS, &serverAddress.sin_addr);  // convert IPv4 and IPv6 addresses from text to binary form
-        if (rval <= 0) {
-            printf("inet_pton() failed");
+    while (1) {
+        printf("waiting..\n");
+        memset(&clientAddress, 0, sizeof(clientAddress));
+        clientAddressLen = sizeof(clientAddress);
+        int clientSocket = accept(listeningSocket, (struct sockaddr *)&clientAddress, &clientAddressLen);
+        if (clientSocket == -1) {
+            printf("listen failed with error code : %d", errno);
+            // close the sockets
+            close(listeningSocket);
             return -1;
         }
 
-        // Make a connection to the server with socket SendingSocket.
-        int connectResult = connect(SenderSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
-        if (connectResult == -1) {
-            printf("connect() failed with error code : %d", errno);
-            // cleanup the socket;
-            close(SenderSocket);
+        printf("A new client connection accepted\n");
+
+        // Receive a message from client
+        char buffer[BUFFER_SIZE];
+        memset(buffer, 0, BUFFER_SIZE);
+        int bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0);
+        if (bytesReceived == -1) {
+            printf("recv failed with error code : %d", errno);
+            // close the sockets
+            close(listeningSocket);
+            close(clientSocket);
             return -1;
         }
+        
+        printf("Received: %s", buffer);
 
-        // int a = 207083353;
-        // int b = 206391054;
-        // int c = a ^ b;
-        //10 == msg length
-        char *message = "abcd";
+        // Reply to client
+        char *message = "Welcome to our TCP-server\n";
         int messageLen = strlen(message) + 1;
-        int bytesSent = send(SenderSocket, message, messageLen, 0);
-        close(SenderSocket);
 
-        if (bytesSent == -1)
-        {
-            printf("send() failed with error code : %d", -1);
-            close(SenderSocket);
+        int bytesSent = send(clientSocket, message, messageLen, 0);
+        if (bytesSent == -1) {
+            printf("send() failed with error code : %d", errno);
+            close(listeningSocket);
+            close(clientSocket);
             return -1;
-        }
-        else if (bytesSent == 0)
-        {
+        } else if (bytesSent == 0) {
             printf("peer has closed the TCP connection prior to send().\n");
-        }
-        else if (bytesSent < messageLen)
-        {
+        } else if (bytesSent < messageLen) {
             printf("sent only %d bytes from the required %d.\n", messageLen, bytesSent);
-        }
-        else
-        {
+        } else {
             printf("message was successfully sent.\n");
         }
-
-        // RENO
-        strcpy(ccBuffer, "reno");
-        socklen_t socklen = strlen(ccBuffer);
-
-        if (setsockopt(MeasureSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, socklen) != 0)
-        {
-            perror("ERROR! socket setting failed!");
-            return -1;
-        }
-
-        socklen = sizeof(ccBuffer);
-        if (getsockopt(MeasureSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, &socklen) != 0)
-        {
-            perror("ERROR! socket getting failed!");
-            return -1;
-        }
-
-        printf("Current Congestion Control -> Reno\n");
-        printf("---------------------------------------------------------------------------------------\n");
-        for (int i = 0; i < 5; i++)
-        {
-            errCheck = listen(MeasureSocket, 10);
-            if (errCheck < 0)
-            {
-                printf("ERROR! set listening failed.\n");
-            }
-
-            SenderSocket = accept(MeasureSocket, NULL, NULL);
-            if (SenderSocket < 0)
-            {
-                perror("ERROR! accepting client failed.\n");
-            }
-
-            char receiverByReno[1024];
-            int amountReceived = 0;
-            gettimeofday(&starting_time, NULL);
-            while ((errCheck = recv(SenderSocket, &receiverByReno, sizeof(receiverByReno), 0) > 0))
-            {
-
-                if (errCheck < 0)
-                {
-                    perror("Error: ");
-                }
-                amountReceived += errCheck;
-            }
-            gettimeofday(&ending_time, NULL);
-
-            // printf("%d\n", KbytesRec);
-
-            double current_time = getAmountOfTime(starting_time, ending_time);
-            // printf("Message recieved: %s \n", buffer);
-            totalTime += current_time;
-            bzero(receiverByReno, 1024);
-            if (i != 4)
-            {
-                close(SenderSocket);
-            }
-        }
-
-        // Receive data from server
-        char bufferReply[SIZE] = {'\0'};
-        int bytesReceived = recv(SenderSocket, bufferReply, SIZE, 0);
-        if (bytesReceived == -1)
-        {
-            printf("recv() failed with error code : %d", -1);
-        }
-        else if (bytesReceived == 0)
-        {
-            printf("peer has closed the TCP connection prior to recv().\n");
-        }
-        else
-        {
-            if (bufferReply == 'y')
-            {
-                printf("received %d bytes from server: %s\n", bytesReceived, bufferReply);
-            }
-            else
-            {
-                close(SenderSocket);
-                goto exit_loop;
-            }
-        }
-        close(SenderSocket);
     }
-exit_loop:;
 
-    // printf("Total receiving time with Reno: %f seconds\n", totalTime / 1000000);
-    // printf("Average receiving time with Reno: %f seconds\n", totalTime / 5000000);
+    close(listeningSocket);
 
-    close(MeasureSocket);
     return 0;
 }
