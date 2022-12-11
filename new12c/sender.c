@@ -83,7 +83,6 @@ int main()
     // reads text until newline is encountered
     FILE *file;
     file = fopen("mobydick2times.txt", "r");
-    // char second_half[15000][300];
     char ch;
     int i = 0, j = 0, len = 0;
     while (!feof(file))
@@ -91,20 +90,21 @@ int main()
         ch = fgetc(file);
         len++;
     }
-    int parts = len / 65536;
+    int parts = len / 1024;
     fclose(file);
-    printf("1count is: %d\n", len);
     // 65536
     FILE *f;
     f = fopen("mobydick2times.txt", "r");
-    char half[parts / 2 + 1][1024];
-    i = 0;
-    while (i < parts / 2)
+    printf("parts is: %d\n", parts);
+
+    char half[parts/2][1024];
+
+    while (!feof(f) && i < parts/2)
     {
-        while (j < 65536)
+        while (j < 1024)
         {
             half[i][j] = fgetc(f);
-            // puts(half[i]);
+            putchar(half[i][j]);
             j++;
         }
         j = 0;
@@ -112,13 +112,11 @@ int main()
     }
 
     printf("1count is: %d\n", i);
-    i = 0;
-    while (!feof(f))
+    while (!feof(f) && i < parts/2)
     {
-        while (j < 65536)
+        while (j < 1024)
         {
             half[i][j] = fgetc(f);
-            putc(half[i][j]);
             j++;
         }
         j = 0;
@@ -126,7 +124,6 @@ int main()
     }
 
     printf("2count is: %d\n", i);
-
     fclose(f);
 
     // Sends some data to server
