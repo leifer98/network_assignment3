@@ -23,7 +23,6 @@ int main()
 
     float totalTime = 0;
     char answer = 'y';
-
     while (answer == 'y')
     {
         printf("Current Congestion Control -> Cubic\n");
