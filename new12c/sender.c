@@ -80,6 +80,55 @@ int main()
         printf("message was successfully sent.\n");
     }
 
+    // reads text until newline is encountered
+    FILE *file;
+    file = fopen("mobydick2times.txt", "r");
+    // char second_half[15000][300];
+    char ch;
+    int i = 0, j = 0, len = 0;
+    while (!feof(file))
+    {
+        ch = fgetc(file);
+        len++;
+    }
+    int parts = len / 65536;
+    fclose(file);
+    printf("1count is: %d\n", len);
+    // 65536
+    FILE *f;
+    f = fopen("mobydick2times.txt", "r");
+    char half[parts / 2 + 1][1024];
+    i = 0;
+    while (i < parts / 2)
+    {
+        while (j < 65536)
+        {
+            half[i][j] = fgetc(f);
+            // puts(half[i]);
+            j++;
+        }
+        j = 0;
+        i++;
+    }
+
+    printf("1count is: %d\n", i);
+    i = 0;
+    while (!feof(f))
+    {
+        while (j < 65536)
+        {
+            half[i][j] = fgetc(f);
+            putc(half[i][j]);
+            j++;
+        }
+        j = 0;
+        i++;
+    }
+
+    printf("2count is: %d\n", i);
+
+    fclose(f);
+
     // Sends some data to server
     char message0[] = "second message\n";
     messageLen = strlen(message0) + 1;
@@ -119,71 +168,7 @@ int main()
         printf("received %d bytes from server: %s\n", bytesReceived, bufferReply);
     }
 
-    char message1[] = "another message sended\n";
-    messageLen = strlen(message1) + 1;
-    bytesSent = send(sock, message1, messageLen, 0); // 4
-
-    if (bytesSent == -1)
-    {
-        printf("send() failed with error code : %d", errno);
-    }
-    else if (bytesSent == 0)
-    {
-        printf("peer has closed the TCP connection prior to send().\n");
-    }
-    else if (bytesSent < messageLen)
-    {
-        printf("sent only %d bytes from the required %d.\n", messageLen, bytesSent);
-    }
-    else
-    {
-        printf("message was successfully sent.\n");
-    }
-
     close(sock);
-
-    // // reads text until newline is encountered
-    // FILE *file;
-    // file = fopen("mobydick2times.txt", "r");
-    // char half[16000][300];
-    // // char second_half[15000][300];
-    // int i = 0, len = 0;
-    // while (!feof(file))
-    // {
-    //     fgets(half[0], 300, file);
-    //     len++;
-    // }
-    // fclose(file);
-
-    // FILE *f;
-    // f = fopen("mobydick2times.txt", "r");
-    // i = 0;
-    // if (len / 2 < 16000)
-    // {
-    //     while (i < len / 2)
-    //     {
-    //         fgets(half[i], 300, f);
-    //         puts(half[i]);
-    //         i++;
-    //     }
-    //     printf("count is: %d\n", len);
-
-    //     while (!feof(file))
-    //     {
-    //         fgets(half[i], 300, f);
-    //         puts(half[i]);
-    //         i++;
-    //     }
-    //     printf("count is: %d\n", len);
-    // }
-    // else
-    // {
-    //     printf("this file is 2 big for this program...");
-    // }
-
-    // fclose(f);
-
-    // printf("count is: %d\n", len);
 
     return 0;
 }
