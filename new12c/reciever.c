@@ -109,7 +109,8 @@ int main()
             return -1;
         }
 
-        printf("Received: %s", buffer);
+        // printf("Received: %s", buffer);
+        puts(buffer);
 
         // Reply to client
         char *message = "Welcome to our TCP-server\n";

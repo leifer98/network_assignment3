@@ -101,12 +101,14 @@ int main()
 
     while (!feof(f) && i < parts/2)
     {
-        while (j < 1024)
+        while (j < 1023)
         {
             half[i][j] = fgetc(f);
-            putchar(half[i][j]);
+            // putchar(half[i][j]);
             j++;
         }
+        half[i][j] = 0;
+
         j = 0;
         i++;
     }
@@ -114,23 +116,25 @@ int main()
     printf("1count is: %d\n", i);
     while (!feof(f) && i < parts/2)
     {
-        while (j < 1024)
+        while (j < 1023)
         {
             half[i][j] = fgetc(f);
+
             j++;
         }
+        half[i][j] = 0;
         j = 0;
         i++;
     }
+    puts(half[0]);
 
     printf("2count is: %d\n", i);
     fclose(f);
 
     // Sends some data to server
-    char message0[] = "second message\n";
-    messageLen = strlen(message0) + 1;
+    messageLen = strlen(half[0]) + 1;
 
-    bytesSent = send(sock, message0, messageLen, 0); // 4
+    bytesSent = send(sock, half[0], messageLen, 0); // 4
 
     if (bytesSent == -1)
     {
