@@ -86,7 +86,8 @@ int main()
             return -1;
         }
         printf("A new client connection accepted\n");
-
+        int amountReceived = 0;
+        int continueRecv;
         // char *extMSG = "";
         while (1)
         {
@@ -108,8 +109,7 @@ int main()
                 return -1;
             }
             // receiving the data
-            int amountReceived = 0;
-            int continueRecv;
+
             memset(&ccBuffer, 0, sizeof(ccBuffer));
             while ((continueRecv = recv(clientSocket, &buffer, sizeof(buffer), 0) > 0))
             {
@@ -153,7 +153,7 @@ int main()
             // Changing to reno algorithm
             printf("Changed Congestion Control to Reno\n");
             strcpy(ccBuffer, "reno");
-            socklen_t socklen = strlen(ccBuffer);
+            socklen = strlen(ccBuffer);
             if (setsockopt(listeningSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, socklen) != 0)
             {
                 perror("ERROR! socket setting failed!");
@@ -166,8 +166,8 @@ int main()
                 return -1;
             }
             //// Receive from client second half of file:
-            int amountReceived = 0;
-            int continueRecv;
+            amountReceived = 0;
+            continueRecv = 0;
             memset(&ccBuffer, 0, sizeof(ccBuffer));
             while ((continueRecv = recv(clientSocket, &buffer, sizeof(buffer), 0) > 0))
             {
