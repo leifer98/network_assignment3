@@ -54,30 +54,24 @@ int main()
         close(sock);
         return -1;
     } // 3
+restart:
 
     printf("connected to server\n");
-
-    // Sends some data to server
-    char message[] = "Hello, from the Client\n";
-    int messageLen = strlen(message) + 1;
-
-    int bytesSent = send(sock, message, messageLen, 0); // 4
-
-    if (bytesSent == -1)
+    // change to cubic CC algorithm
+    char ccBuffer[256];
+    printf("Changed Congestion Control to Cubic\n");
+    strcpy(ccBuffer, "cubic");
+    socklen_t socklen = strlen(ccBuffer);
+    if (setsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, socklen) != 0)
     {
-        printf("send() failed with error code : %d", errno);
+        perror("ERROR! socket setting failed!");
+        return -1;
     }
-    else if (bytesSent == 0)
+    socklen = sizeof(ccBuffer);
+    if (getsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, &socklen) != 0)
     {
-        printf("peer has closed the TCP connection prior to send().\n");
-    }
-    else if (bytesSent < messageLen)
-    {
-        printf("sent only %d bytes from the required %d.\n", messageLen, bytesSent);
-    }
-    else
-    {
-        printf("message was successfully sent.\n");
+        perror("ERROR! socket getting failed!");
+        return -1;
     }
 
     // reads text until newline is encountered
@@ -95,46 +89,47 @@ int main()
     // 65536
     FILE *f;
     f = fopen("mobydick2times.txt", "r");
-    printf("parts is: %d\n", parts);
+    printf("file seperated to %d parts\n", parts);
 
-    char half[parts/2][1024];
+    char half[parts / 2][1024];
 
-    while (!feof(f) && i < parts/2)
+    while (!feof(f) && i < parts / 2)
     {
         while (j < 1023)
         {
             half[i][j] = fgetc(f);
-            // putchar(half[i][j]);
             j++;
         }
-        half[i][j] = 0;
+        half[i][j] = '\0';
+        // if (i  == 300) puts(half[i]);
+        int messageLen = strlen(half[i]) + 1;
 
-        j = 0;
-        i++;
-    }
+        int bytesSent = send(sock, half[i], messageLen, 0); // 4
 
-    printf("1count is: %d\n", i);
-    while (!feof(f) && i < parts/2)
-    {
-        while (j < 1023)
+        if (bytesSent == -1)
         {
-            half[i][j] = fgetc(f);
-
-            j++;
+            printf("send() failed with error code : %d", errno);
         }
-        half[i][j] = 0;
+        else if (bytesSent == 0)
+        {
+            printf("peer has closed the TCP connection prior to send().\n");
+        }
+        else if (bytesSent < messageLen)
+        {
+            printf("sent only %d bytes from the required %d.\n", messageLen, bytesSent);
+        }
+        else
+        {
+            // printf("sent %d part out of %d parts \n", i, parts);
+        }
         j = 0;
         i++;
     }
-    puts(half[0]);
 
-    printf("2count is: %d\n", i);
-    fclose(f);
+    // Sends message to server thats the first half finished
+    int messageLen = strlen("1") + 1;
 
-    // Sends some data to server
-    messageLen = strlen(half[0]) + 1;
-
-    bytesSent = send(sock, half[0], messageLen, 0); // 4
+    int bytesSent = send(sock, "1", messageLen, 0); // 4
 
     if (bytesSent == -1)
     {
@@ -150,10 +145,11 @@ int main()
     }
     else
     {
-        printf("message was successfully sent.\n");
+        printf("finished to send first half of the file with %d parts \n", parts);
     }
 
     // Receive data from server
+    puts("waiting for server to send authuntication...");
     char bufferReply[BUFFER_SIZE] = {'\0'};
     int bytesReceived = recv(sock, bufferReply, BUFFER_SIZE, 0);
     if (bytesReceived == -1)
@@ -168,8 +164,119 @@ int main()
     {
         printf("received %d bytes from server: %s\n", bytesReceived, bufferReply);
     }
+    int flag = 1;
+    char xor [] = "1234";
+    for (int i = 0; i < strlen(xor); i++)
+    {
+        if (xor[i] != bufferReply[i])
+            flag = 0;
+    }
 
+    if (flag == 0)
+        return 1;
+
+    // code got changing CC algorithm
+    // Changing to reno algorithm
+    printf("Changed Congestion Control to Reno\n");
+    strcpy(ccBuffer, "reno");
+    socklen = strlen(ccBuffer);
+    if (setsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, socklen) != 0)
+    {
+        perror("ERROR! socket setting failed!");
+        return -1;
+    }
+    socklen = sizeof(ccBuffer);
+    if (getsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, &socklen) != 0)
+    {
+        perror("ERROR! socket getting failed!");
+        return -1;
+    }
+
+    // second half
+    int oldi = i;
+    i = 0;
+    while (!feof(f) && i < parts / 2)
+    {
+        while (j < 1023)
+        {
+            half[i][j] = fgetc(f);
+            j++;
+        }
+        half[i][j] = '\0';
+        // if (i + oldi == 900) puts(half[i]);
+
+        int messageLen = strlen(half[i]) + 1;
+
+        int bytesSent = send(sock, half[i], messageLen, 0); // 4
+
+        if (bytesSent == -1)
+        {
+            printf("send() failed with error code : %d", errno);
+        }
+        else if (bytesSent == 0)
+        {
+            printf("peer has closed the TCP connection prior to send().\n");
+        }
+        else if (bytesSent < messageLen)
+        {
+            printf("sent only %d bytes from the required %d.\n", messageLen, bytesSent);
+        }
+        else
+        {
+            // printf("sent %d part out of %d parts \n", (i+oldi), parts);
+        }
+        j = 0;
+        i++;
+    }
+    fclose(f);
+
+    // Sends message to server thats the first half finished
+    messageLen = strlen("2") + 1;
+
+    bytesSent = send(sock, "2", messageLen, 0); // 4
+
+    if (bytesSent == -1)
+    {
+        printf("send() failed with error code : %d", errno);
+    }
+    else if (bytesSent == 0)
+    {
+        printf("peer has closed the TCP connection prior to send().\n");
+    }
+    else if (bytesSent < messageLen)
+    {
+        printf("sent only %d bytes from the required %d.\n", messageLen, bytesSent);
+    }
+    else
+    {
+        printf("finished to send second half of the file with %d parts \n", parts);
+    }
+    // puts(half[0]);
+
+    // USER DECISION
+    char buffer[BUFFER_SIZE];
+    printf("Enter \"byebye\" to end session, enter anything else to restart process, \n ");
+    fgets(buffer, BUFFER_SIZE, stdin);
+
+    bytesSent = send(sock, buffer, BUFFER_SIZE, 0); // 4
+
+    if (bytesSent == -1)
+    {
+        printf("send() failed with error code : %d", errno);
+    }
+    else if (bytesSent == 0)
+    {
+        printf("peer has closed the TCP connection prior to send().\n");
+    }
+    else if (bytesSent < messageLen)
+    {
+        printf("sent only %d bytes from the required %d.\n", BUFFER_SIZE, bytesSent);
+    }
+
+    if (strncmp(buffer, "byebye", 4) != 0)
+    {
+        goto restart;
+    }
     close(sock);
-
     return 0;
 }

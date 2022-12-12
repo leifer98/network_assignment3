@@ -2,17 +2,17 @@
     TCP/IP-server
 */
 
-#include <stdio.h>
-
-// Linux and other UNIXes
+#include <arpa/inet.h>
 #include <errno.h>
 #include <netinet/in.h>
-#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <netinet/tcp.h>
+#include <time.h>
 
 #define SERVER_PORT 5060 // The port that the server listens
 #define BUFFER_SIZE 1024
@@ -76,44 +76,69 @@ int main()
     }
 
     // Accept and incoming connection
-    printf("Waiting for incoming TCP-connections...\n");
     struct sockaddr_in clientAddress; //
     socklen_t clientAddressLen = sizeof(clientAddress);
 
-    printf("waiting..\n");
-    memset(&clientAddress, 0, sizeof(clientAddress));
-    clientAddressLen = sizeof(clientAddress);
-    int clientSocket = accept(listeningSocket, (struct sockaddr *)&clientAddress, &clientAddressLen);
-    if (clientSocket == -1)
-    {
-        printf("listen failed with error code : %d", errno);
-        // close the sockets
-        close(listeningSocket);
-        return -1;
-    }
-    printf("A new client connection accepted\n");
-
     while (1)
     {
+        printf("Waiting for incoming TCP-connections...\n");
+
+        memset(&clientAddress, 0, sizeof(clientAddress));
+        clientAddressLen = sizeof(clientAddress);
+        int clientSocket = accept(listeningSocket, (struct sockaddr *)&clientAddress, &clientAddressLen);
+        if (clientSocket == -1)
+        {
+            printf("listen failed with error code : %d\n", errno);
+            // close the sockets
+            close(listeningSocket);
+            return -1;
+        }
+        printf("A new client connection accepted\n");
+    restart:
+        puts("");
+
+        // code got changing CC algorithm
+        char ccBuffer[256];
+        printf("Changed Congestion Control to Cubic\n");
+        strcpy(ccBuffer, "cubic");
+        socklen_t socklen = strlen(ccBuffer);
+        if (setsockopt(listeningSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, socklen) != 0)
+        {
+            perror("ERROR! socket setting failed!");
+            return -1;
+        }
+        socklen = sizeof(ccBuffer);
+        if (getsockopt(listeningSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, &socklen) != 0)
+        {
+            perror("ERROR! socket getting failed!");
+            return -1;
+        }
 
         // Receive a message from client
         char buffer[BUFFER_SIZE];
         memset(buffer, 0, BUFFER_SIZE);
-        int bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0);
-        if (bytesReceived == -1)
+        int bytesReceived;
+        int count = 0;
+        while ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
         {
-            printf("recv failed with error code : %d", errno);
-            // close the sockets
-            close(listeningSocket);
-            close(clientSocket);
-            return -1;
+            // printf("Received %d bytes from client. chunk number %d\n", bytesReceived, count);
+            // if (count == 300)
+            //     puts(buffer);
+            // check if got the "exit" command from client, if yes, then exit and close the client socket
+            if (strncmp(buffer, "1", 1) == 0)
+            {
+                printf("Client has sended the first half of the file in %d chunks\n", count);
+                break;
+            }
+            memset(buffer, 0, BUFFER_SIZE);
+            // puts(buffer);
+            count++;
         }
 
-        // printf("Received: %s", buffer);
-        puts(buffer);
-
         // Reply to client
-        char *message = "Welcome to our TCP-server\n";
+        puts("sending authuntication to client...\n");
+
+        char *message = "1234";
         int messageLen = strlen(message) + 1;
 
         int bytesSent = send(clientSocket, message, messageLen, 0);
@@ -132,9 +157,58 @@ int main()
         {
             printf("sent only %d bytes from the required %d.\n", messageLen, bytesSent);
         }
-        else
+
+        // Changing to reno algorithm
+        printf("Changed Congestion Control to Reno\n");
+        strcpy(ccBuffer, "reno");
+        socklen = strlen(ccBuffer);
+        if (setsockopt(listeningSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, socklen) != 0)
         {
-            printf("message was successfully sent.\n");
+            perror("ERROR! socket setting failed!");
+            return -1;
+        }
+        socklen = sizeof(ccBuffer);
+        if (getsockopt(listeningSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, &socklen) != 0)
+        {
+            perror("ERROR! socket getting failed!");
+            return -1;
+        }
+
+        // waiting to recieve second part.
+        memset(buffer, 0, BUFFER_SIZE);
+        int oldCount = count;
+        while ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
+        {
+            // printf("Received %d bytes from client. chunk number %d\n", bytesReceived, count);
+            // if (count == 900)
+            //     puts(buffer);
+            // check if got the "exit" command from client, if yes, then exit and close the client socket
+            if (strncmp(buffer, "2", 1) == 0)
+            {
+                printf("Client has sended the second half of the file in %d chunks\n", (count - oldCount));
+                break;
+            }
+            memset(buffer, 0, BUFFER_SIZE);
+            // puts(buffer);
+            count++;
+        }
+
+        // USER DECISION
+        puts("waiting for user decision...");
+        memset(buffer, 0, BUFFER_SIZE);
+        if ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
+        {
+            printf("Received %d bytes from client. decision is %s\n", bytesReceived, buffer);
+
+            // check if got the "byebye" command from client, if yes, then exit and close the client socket
+            if (strncmp(buffer, "byebye", 4) == 0)
+            {
+                printf("Client has decided to end the session.\n");
+            }
+            else
+            {
+                goto restart;
+            }
         }
     }
 
