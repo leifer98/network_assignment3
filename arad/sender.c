@@ -17,7 +17,7 @@
 #define SERVER_PORT 5060
 #define SERVER_IP_ADDRESS "127.0.0.1"
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 8192
 
 int main()
 {
@@ -84,14 +84,14 @@ restart:
         ch = fgetc(file);
         len++;
     }
-    int parts = len / 1024;
+    int parts = len / BUFFER_SIZE;
     fclose(file);
     // 65536
     FILE *f;
     f = fopen("mobydick2times.txt", "r");
     printf("file seperated to %d parts\n", parts);
 
-    char half[parts / 2][1024];
+    char half[parts / 2][BUFFER_SIZE];
 
     while (!feof(f) && i < parts / 2)
     {

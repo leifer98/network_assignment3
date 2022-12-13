@@ -16,7 +16,7 @@
 #include <sys/time.h>
 
 #define SERVER_PORT 5060 // The port that the server listens
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 8192
 void addLongToString(char *str, long num)
 {
     char temp[20];
@@ -26,7 +26,6 @@ void addLongToString(char *str, long num)
 int main()
 {
     // Time setup:
-    char time_text[100000] = "";
     struct timeval start, end;
     long tot = 0;
     // Open the listening (server) socket
@@ -102,6 +101,7 @@ int main()
             return -1;
         }
         printf("A new client connection accepted\n");
+        char time_text[100000] = "";
         long totClientTime_1 = 0;
         long totClientTime_2 = 0;
         int countFileSent = 1;
