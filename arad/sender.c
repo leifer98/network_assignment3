@@ -95,7 +95,7 @@ restart:
 
     while (!feof(f) && i < parts / 2)
     {
-        while (j < 1023)
+        while (j < BUFFER_SIZE-1)
         {
             half[i][j] = fgetc(f);
             j++;
@@ -197,7 +197,7 @@ restart:
     i = 0;
     while (!feof(f) && i < parts / 2)
     {
-        while (j < 1023)
+        while (j < BUFFER_SIZE-1)
         {
             half[i][j] = fgetc(f);
             j++;
