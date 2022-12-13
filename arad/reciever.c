@@ -114,17 +114,24 @@ int main()
         printf("Changed Congestion Control to Cubic\n");
         strcpy(ccBuffer, "cubic");
         socklen_t socklen = strlen(ccBuffer);
+        struct timeval timeout;
+        timeout.tv_sec = 45;
+        timeout.tv_usec = 0;
+
         if (setsockopt(listeningSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, socklen) != 0)
         {
             perror("ERROR! socket setting failed!");
             return -1;
         }
-        socklen = sizeof(ccBuffer);
         if (getsockopt(listeningSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, &socklen) != 0)
         {
             perror("ERROR! socket getting failed!");
             return -1;
         }
+        if (setsockopt(listeningSocket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout) < 0)
+            printf("setsockopt failed\n");
+        if (setsockopt(listeningSocket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof timeout) < 0)
+            printf("setsockopt failed\n");
 
         // time capturing handling
         gettimeofday(&start, NULL);
@@ -197,6 +204,10 @@ int main()
             perror("ERROR! socket getting failed!");
             return -1;
         }
+        if (setsockopt(listeningSocket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout) < 0)
+            printf("setsockopt failed\n");
+        if (setsockopt(listeningSocket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof timeout) < 0)
+            printf("setsockopt failed\n");
 
         // time capturing handling
         gettimeofday(&start, NULL);
