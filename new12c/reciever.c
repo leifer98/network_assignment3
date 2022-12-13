@@ -17,10 +17,12 @@
 #define SERVER_PORT 5060 // The port that the server listens
 #define BUFFER_SIZE 1024
 
+
+
 int main()
 {
     // signal(SIGPIPE, SIG_IGN);  // on linux to prevent crash on closing socket
-
+    char time_text[100000] = "";
     // Open the listening (server) socket
     int listeningSocket = -1;
     listeningSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); // 0 means default protocol for stream sockets (Equivalently, IPPROTO_TCP)
@@ -83,6 +85,7 @@ int main()
     {
         printf("Waiting for incoming TCP-connections...\n");
 
+
         memset(&clientAddress, 0, sizeof(clientAddress));
         clientAddressLen = sizeof(clientAddress);
         int clientSocket = accept(listeningSocket, (struct sockaddr *)&clientAddress, &clientAddressLen);
@@ -114,6 +117,10 @@ int main()
             return -1;
         }
 
+        // time capturing handling
+        time_t start = time(0);
+
+
         // Receive a message from client
         char buffer[BUFFER_SIZE];
         memset(buffer, 0, BUFFER_SIZE);
@@ -134,6 +141,11 @@ int main()
             // puts(buffer);
             count++;
         }
+
+        // time capturing handling
+        time_t end = time(0);
+        time_t first_half_time = start - end;
+
 
         // Reply to client
         puts("sending authuntication to client...\n");
@@ -174,6 +186,9 @@ int main()
             return -1;
         }
 
+        // time capturing handling
+        start = time(0);
+
         // waiting to recieve second part.
         memset(buffer, 0, BUFFER_SIZE);
         int oldCount = count;
@@ -193,6 +208,11 @@ int main()
             count++;
         }
 
+        // time capturing handling
+        end = time(0);
+        time_t second_half_time = start - end;
+
+
         // USER DECISION
         puts("waiting for user decision...");
         memset(buffer, 0, BUFFER_SIZE);
@@ -211,6 +231,7 @@ int main()
             }
         }
     }
+    puts(time_text);
 
     close(listeningSocket);
 
