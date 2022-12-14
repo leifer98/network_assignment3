@@ -76,7 +76,7 @@ restart:
 
     // reads text until newline is encountered
     FILE *file;
-    file = fopen("mobydick2times.txt", "r");
+    file = fopen("0.txt", "r");
     char ch;
     int i = 0, j = 0, len = 0;
     while (!feof(file))
@@ -84,6 +84,7 @@ restart:
         ch = fgetc(file);
         len++;
     }
+    printf("%d\n",len);
     int parts = len / BUFFER_SIZE;
     fclose(file);
     // 65536

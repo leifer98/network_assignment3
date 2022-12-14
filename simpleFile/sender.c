@@ -16,7 +16,7 @@
 
 #define SERVER_PORT 5062
 #define SERVER_IP_ADDRESS "127.0.0.1"
-#define FILE_SIZE 1261568
+#define FILE_SIZE 1048576
 #define BUFFER_SIZE 8192
 
 int main()
@@ -75,8 +75,11 @@ restart:
     }
 
     // reads text until newline is encountered
+
     FILE *file;
-    file = fopen("mobydick2times.txt", "r");
+
+    
+    file = fopen("0.txt", "r");
     int i = 0, len = 0;
     int amountSent = 0, b;
     char data[BUFFER_SIZE];
@@ -141,11 +144,11 @@ restart:
     }
 
     // second half
-    int oldamountSent =amountSent, g;
+    int oldamountSent = amountSent, g;
     bzero(data, BUFFER_SIZE);
     while (((b = fread(data, 1, BUFFER_SIZE, file)) > 0) && (amountSent <= FILE_SIZE))
     {
-        if ((g = send(sock, data, BUFFER_SIZE, 0)) == -1)
+        if ((g = send(sock, data, b, 0)) == -1)
         {
             perror("ERROR! Sending has failed!\n");
             exit(1);
@@ -178,7 +181,7 @@ restart:
     }
     else
     {
-        printf("sent msg succesfuly!");
+        printf("sent msg succesfuly! \n");
     }
     if (strncmp(buffer, "byebye", 4) != 0)
     {

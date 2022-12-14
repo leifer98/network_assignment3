@@ -13,7 +13,7 @@
 
 #define SERVER_PORT 5062 // The port that the server listens
 #define BUFFER_SIZE 8192
-#define FILE_SIZE 1261568
+#define FILE_SIZE 1048576
 void addLongToString(char *str, long num)
 {
     char temp[20];
@@ -136,7 +136,7 @@ int main()
             amountRec += bytesReceived;
             bzero(buffer, BUFFER_SIZE);
         }
-        printf("recieves in total for first half: %d bytes", amountRec);
+        printf("recieves in total for first half: %d bytes \n", amountRec);
         // time capturing handling
         gettimeofday(&end, NULL);
         tot = ((end.tv_sec * 1000000 + end.tv_usec) -
@@ -191,7 +191,7 @@ int main()
         // waiting to recieve second part.
         /// problem here: !!!!!!!!!!!!!!!!!!!!!!!
         memset(buffer, 0, BUFFER_SIZE);
-        while ((amountRec <= (FILE_SIZE - 3000)) && (bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
+        while ((amountRec <= (FILE_SIZE)) && (bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
         {
             printf("%d \n", amountRec);
             amountRec += bytesReceived;
