@@ -11,9 +11,9 @@
 #include <time.h>
 #include <sys/time.h>
 
-#define SERVER_PORT 5061 // The port that the server listens
+#define SERVER_PORT 5062 // The port that the server listens
 #define BUFFER_SIZE 8192
-#define FILE_SIZE 1262041
+#define FILE_SIZE 1261568
 void addLongToString(char *str, long num)
 {
     char temp[20];
@@ -98,14 +98,14 @@ int main()
             return -1;
         }
         printf("A new client connection accepted\n");
-        //time calculations preperation:
+        // time calculations preperation:
         char time_text[100000] = "";
         long totClientTime_1 = 0;
         long totClientTime_2 = 0;
         int countFileSent = 1;
 
     restart:
-        printf("This is round number %d to send file: ",countFileSent);
+        printf("This is round number %d to send file: ", countFileSent);
 
         // code got changing CC algorithm
         char ccBuffer[256];
@@ -130,7 +130,7 @@ int main()
         char buffer[BUFFER_SIZE];
         bzero(buffer, BUFFER_SIZE);
         int bytesReceived, amountRec = 0;
-        while ((amountRec <= FILE_SIZE / 2) > 0 && (bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)))
+        while ((amountRec <= (FILE_SIZE / 2)) && (bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
         {
             printf("%d \n", amountRec);
             amountRec += bytesReceived;
@@ -189,10 +189,11 @@ int main()
         gettimeofday(&start, NULL);
 
         // waiting to recieve second part.
+        /// problem here: !!!!!!!!!!!!!!!!!!!!!!!
         memset(buffer, 0, BUFFER_SIZE);
-        while ((amountRec <= FILE_SIZE) && (bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)> 0))
+        while ((amountRec <= (FILE_SIZE - 3000)) && (bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
         {
-            printf("%d \n", bytesReceived);
+            printf("%d \n", amountRec);
             amountRec += bytesReceived;
             bzero(buffer, BUFFER_SIZE);
         }

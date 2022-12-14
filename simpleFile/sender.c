@@ -14,9 +14,9 @@
 #include <netinet/tcp.h>
 #include <time.h>
 
-#define SERVER_PORT 5061
+#define SERVER_PORT 5062
 #define SERVER_IP_ADDRESS "127.0.0.1"
-#define FILE_SIZE 1262041
+#define FILE_SIZE 1261568
 #define BUFFER_SIZE 8192
 
 int main()
@@ -117,10 +117,8 @@ restart:
         if (xor[i] != bufferReply[i])
             flag = 0;
     }
-
     if (flag == 0)
         return 1;
-
     // code got changing CC algorithm
     // Changing to reno algorithm
     printf("Changed Congestion Control to Reno\n");
@@ -139,11 +137,11 @@ restart:
     }
 
     // second half
-    int oldamountSent = 0, g;
+    int oldamountSent =amountSent, g;
     bzero(data, BUFFER_SIZE);
-    while (((b = fread(data, 1, sizeof data, file)) > 0) && (amountSent <= FILE_SIZE))
+    while (((b = fread(data, 1, BUFFER_SIZE, file)) > 0) && (amountSent <= FILE_SIZE))
     {
-        if ((g = send(sock, data, strlen(data), 0)) == -1)
+        if ((g = send(sock, data, BUFFER_SIZE, 0)) == -1)
         {
             perror("ERROR! Sending has failed!\n");
             exit(1);
@@ -152,7 +150,7 @@ restart:
         amountSent += b;
         bzero(data, BUFFER_SIZE);
     }
-    printf("amount sent in half2 is %d", amountSent - oldamountSent);
+    printf("amount sent in half2 is %d. \n", amountSent - oldamountSent);
     fclose(file);
 
     // USER DECISION
@@ -174,7 +172,9 @@ restart:
     {
         printf("sent only %d bytes from the required %d.\n", BUFFER_SIZE, bytesSent);
     }
-
+    else
+    {
+    }
     if (strncmp(buffer, "byebye", 4) != 0)
     {
         goto restart;
