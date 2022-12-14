@@ -118,7 +118,11 @@ restart:
             flag = 0;
     }
     if (flag == 0)
+    {
+        printf("wrong authntication!");
+        close(sock);
         return 1;
+    }
     // code got changing CC algorithm
     // Changing to reno algorithm
     printf("Changed Congestion Control to Reno\n");
@@ -174,6 +178,7 @@ restart:
     }
     else
     {
+        printf("sent msg succesfuly!");
     }
     if (strncmp(buffer, "byebye", 4) != 0)
     {
