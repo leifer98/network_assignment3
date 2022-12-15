@@ -78,7 +78,6 @@ restart:
 
     FILE *file;
 
-    
     file = fopen("0.txt", "r");
     int i = 0, len = 0;
     int amountSent = 0, b;
@@ -93,6 +92,15 @@ restart:
         printf("sent data: %d \n", b);
         amountSent += b;
         bzero(data, BUFFER_SIZE);
+    }
+    char *message = "finish";
+    int messageLen = strlen(message) + 1;
+    int bytesSent = send(sock, message, messageLen, 0);
+    if (bytesSent == -1)
+    {
+        printf("send() failed with error code : %d", errno);
+        close(sock);
+        return -1;
     }
     printf("amount sent in half1 is %d. \n", amountSent);
     // Sends message to server thats the first half finished
@@ -157,6 +165,13 @@ restart:
         amountSent += b;
         bzero(data, BUFFER_SIZE);
     }
+    bytesSent = send(sock, message, messageLen, 0);
+    if (bytesSent == -1)
+    {
+        printf("send() failed with error code : %d", errno);
+        close(sock);
+        return -1;
+    }
     printf("amount sent in half2 is %d. \n", amountSent - oldamountSent);
     fclose(file);
 
@@ -164,8 +179,8 @@ restart:
     char buffer[BUFFER_SIZE];
     printf("Enter \"byebye\" to end session, enter anything else to restart process: \n");
     fgets(buffer, BUFFER_SIZE, stdin);
-    int messageLen = strlen(buffer);
-    int bytesSent = send(sock, buffer, BUFFER_SIZE, 0); // 4
+     messageLen = strlen(buffer);
+     bytesSent = send(sock, buffer, BUFFER_SIZE, 0); // 4
 
     if (bytesSent == -1)
     {

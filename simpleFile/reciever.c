@@ -130,11 +130,18 @@ int main()
         char buffer[BUFFER_SIZE];
         bzero(buffer, BUFFER_SIZE);
         int bytesReceived, amountRec = 0;
-        while ((amountRec <= (FILE_SIZE / 2)) && (bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
+        while ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
         {
-            printf("%d \n", amountRec);
-            amountRec += bytesReceived;
-            bzero(buffer, BUFFER_SIZE);
+            if (strncmp(buffer, "finish", 4) == 0)
+            {
+                break;
+            }
+            else
+            {
+                printf("%d \n", amountRec);
+                amountRec += bytesReceived;
+                bzero(buffer, BUFFER_SIZE);
+            }
         }
         printf("recieves in total for first half: %d bytes \n", amountRec);
         // time capturing handling
@@ -191,13 +198,19 @@ int main()
         // waiting to recieve second part.
         /// problem here: !!!!!!!!!!!!!!!!!!!!!!!
         memset(buffer, 0, BUFFER_SIZE);
-        while ((amountRec <= (FILE_SIZE)) && (bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
+        while ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
         {
-            printf("%d \n", amountRec);
-            amountRec += bytesReceived;
-            bzero(buffer, BUFFER_SIZE);
+            if (strncmp(buffer, "finish", 4) == 0)
+            {
+                break;
+            }
+            else
+            {
+                printf("%s \n", buffer);
+                amountRec += bytesReceived;
+                bzero(buffer, BUFFER_SIZE);
+            }
         }
-
         // time capturing handling
         gettimeofday(&end, NULL);
         tot = ((end.tv_sec * 1000000 + end.tv_usec) -
