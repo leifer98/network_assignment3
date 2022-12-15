@@ -10,7 +10,7 @@
 #include <netinet/tcp.h>
 #include <time.h>
 
-#define SERVER_PORT 5062
+#define SERVER_PORT 5064
 #define SERVER_IP_ADDRESS "127.0.0.1"
 #define FILE_SIZE 1048575
 #define BUFFER_SIZE 8192
@@ -18,7 +18,6 @@
 int main()
 {
     int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); // 1
-
     if (sock == -1)
     {
         printf("Could not create socket : %d", errno);
@@ -27,7 +26,6 @@ int main()
 
     // "sockaddr_in" is the "derived" from sockaddr structure
     // used for IPv4 communication. For IPv6, use sockaddr_in6
-    //
     struct sockaddr_in serverAddress;
     memset(&serverAddress, 0, sizeof(serverAddress));
 
@@ -52,7 +50,7 @@ int main()
     } // 3
 restart:
 
-    printf("connected to server\n");
+    printf("connected to server..\n");
     // change to cubic CC algorithm
     char ccBuffer[256];
     printf("Changed Congestion Control to Cubic\n");
@@ -71,37 +69,31 @@ restart:
     }
 
     // reads text until newline is encountered
-
     FILE *file;
 
     file = fopen("0.txt", "r");
-    int i = 0, len = 0;
     int amountSent = 0, b;
     char data[BUFFER_SIZE];
-    while (((b = fread(data, 1, sizeof data, file)) > 0) && (amountSent < FILE_SIZE / 2))
+    while (((b = fread(data, 1, sizeof data, file)) > 0) && (amountSent < (FILE_SIZE / 2)))
     {
         if (send(sock, data, sizeof(data), 0) == -1)
         {
             perror("ERROR! Sending has failed!\n");
             exit(1);
         }
-        printf("sent data: %d \n", b);
         amountSent += b;
         bzero(data, BUFFER_SIZE);
     }
+    printf("finished sending first half amount sent is: %d \n", amountSent);
     char *message = "done";
-    int messageLen = strlen(message) + 1;
-    // message[messageLen] = '\0';
-    int bytesSent = send(sock, message, messageLen, 0);
+    int bytesSent = send(sock, message, strlen(message) + 1, 0);
     if (bytesSent == -1)
     {
         printf("send() failed with error code : %d", errno);
         close(sock);
         return -1;
     }
-    printf("amount sent in half1 is %d. \n", amountSent);
     // Sends message to server thats the first half finished
-
     // Receive data from server
     printf("waiting for server to send authuntication...\n");
     char bufferReply[BUFFER_SIZE] = {'\0'};
@@ -116,7 +108,7 @@ restart:
     }
     else
     {
-        printf("received %d bytes from server: %s\n", bytesReceived, bufferReply);
+        printf("received %d bytes from server. reply: %s\n", bytesReceived, bufferReply);
     }
     int flag = 1;
     char xor [] = "1740887";
@@ -149,39 +141,37 @@ restart:
     }
 
     // second half
-    int oldamountSent = amountSent, g;
+    int oldamountSent = amountSent;
+    int g;
     bzero(data, BUFFER_SIZE);
-    while (((b = fread(data, 1, BUFFER_SIZE, file)) > 0))
+    while ((b = fread(data, 1, BUFFER_SIZE, file)) > 0)
     {
         if ((g = send(sock, data, b, 0)) == -1)
         {
             printf("ERROR! Sending has failed!\n");
-            exit(1);
+            return -1;
         }
-        printf("b: %d, g: %d \n", b, g);
         amountSent += b;
-        bzero(data, BUFFER_SIZE);
+        // bzero(data, BUFFER_SIZE);
     }
-    printf("amount sent in half2 is %d. \n", amountSent - oldamountSent);
     fclose(file);
     // sending msg done.
     char *message2 = "done";
-    char replymsg[5] = {'d', 'o', 'n', 'e', '\0'};
-    // message2[messageLen2 - 1] = '\0';
-    bytesSent = send(sock, message2, 5, 0);
+    bytesSent = send(sock, message2, strlen(message2) + 1, 0);
     if (bytesSent == -1)
     {
         printf("send() failed with error code : %d", errno);
         close(sock);
         return -1;
     }
+    printf("amount sent in half 2 is %d. \n", (amountSent - oldamountSent));
 
     // USER DECISION
-    char buffer[BUFFER_SIZE] = {'\0'};
-    printf("Enter \"byebye\" to end session, enter anything else to restart process: \n");
+    char buffer[BUFFER_SIZE] = {0};
+    printf("Enter \"g\" to end session, enter \"n\" restart process: \n");
     fgets(buffer, BUFFER_SIZE, stdin);
-    messageLen = strlen(buffer);
-    bytesSent = send(sock, buffer, BUFFER_SIZE, 0); // 4
+    buffer[strlen(buffer) - 1] = '\0';
+    bytesSent = send(sock, buffer, strlen(buffer) + 1, 0); // 4
 
     if (bytesSent == -1)
     {
@@ -191,17 +181,18 @@ restart:
     {
         printf("peer has closed the TCP connection prior to send().\n");
     }
-    else if (bytesSent < messageLen)
+    else if (bytesSent < strlen(buffer) + 1)
     {
         printf("sent only %d bytes from the required %d.\n", BUFFER_SIZE, bytesSent);
     }
     else
     {
-        printf("sent msg succesfuly! \n");
+        printf("sent msg succesfuly!: %s \n", buffer);
     }
-    if (strncmp(buffer, "byebye", 4) != 0)
+    if (strncmp(buffer, "g", 1) != 0)
     {
         bzero(buffer, BUFFER_SIZE);
+        puts("****************************************************");
         goto restart;
     }
     close(sock);

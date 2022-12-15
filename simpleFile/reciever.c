@@ -11,7 +11,7 @@
 #include <time.h>
 #include <sys/time.h>
 
-#define SERVER_PORT 5062 // The port that the server listens
+#define SERVER_PORT 5064 // The port that the server listens
 #define BUFFER_SIZE 8192
 #define FILE_SIZE 1048575
 void addLongToString(char *str, long num)
@@ -125,31 +125,30 @@ int main()
         }
 
         // time capturing handling
-        gettimeofday(&start, NULL);
         // Receive a message from client
         char buffer[BUFFER_SIZE];
         bzero(buffer, BUFFER_SIZE);
         int bytesReceived, amountRec = 0;
+        gettimeofday(&start, NULL);
         while ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
         {
-            if (strncmp(buffer, "done", 4) == 0)
+            if (strstr(buffer, "one") != NULL)
             {
+                printf("Received %d bytes from client: %s\n", bytesReceived, buffer);
                 printf("got done\n");
                 goto asd;
             }
             else
             {
-                // printf("%d \n", amountRec);
+                // printf("Received %d bytes from client: %s\n", bytesReceived, buffer);
                 amountRec += bytesReceived;
                 bzero(buffer, BUFFER_SIZE);
             }
         }
     asd:;
-        printf("asdasdasd %s \n", buffer);
-
+        gettimeofday(&end, NULL);
         printf("recieves in total for first half: %d bytes \n", amountRec);
         // time capturing handling
-        gettimeofday(&end, NULL);
         tot = ((end.tv_sec * 1000000 + end.tv_usec) -
                (start.tv_sec * 1000000 + start.tv_usec));
         totClientTime_1 += tot;
@@ -197,14 +196,13 @@ int main()
             return -1;
         }
         // time capturing handling
-        gettimeofday(&start, NULL);
 
         // waiting to recieve second part.
-        /// problem here: !!!!!!!!!!!!!!!!!!!!!!!
         bzero(buffer, BUFFER_SIZE);
+        gettimeofday(&start, NULL);
         while ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
         {
-            if (strncmp(buffer, "done", 4) == 0)
+            if (strstr(buffer, "one") != NULL)
             {
                 printf("Received %d bytes from client: %s\n", bytesReceived, buffer);
                 printf("got done\n");
@@ -212,7 +210,7 @@ int main()
             }
             else
             {
-                printf("Received %d bytes from client: %s\n", bytesReceived, buffer);
+                // printf("Received %d bytes from client: %s\n", bytesReceived, buffer);
                 amountRec += bytesReceived;
                 bzero(buffer, BUFFER_SIZE);
             }
@@ -224,30 +222,32 @@ int main()
                (start.tv_sec * 1000000 + start.tv_usec));
         totClientTime_2 += tot;
 
-        // printf("time taken in micro seconds for second half: %ld \n", tot);
+        printf("recieves in total for second half: %d bytes \n", amountRec);
         char temp_str1[50] = "time taken in micro seconds for second half: ";
         addLongToString(temp_str1, tot);
         strcat(temp_str1, "\n");
         strcat(time_text, temp_str1);
 
         // USER DECISION
-        puts("waiting for user decision...");
+        printf("waiting for user decision...\n");
         memset(buffer, 0, BUFFER_SIZE);
         if ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
         {
             printf("Received %d bytes from client. decision is %s\n", bytesReceived, buffer);
 
-            // check if got the "byebye" command from client, if yes, then exit and close the client socket
-            if (strncmp(buffer, "byebye", 4) == 0)
+            // check if got the "g" command from client, if yes, then exit and close the client socket
+            if (strncmp(buffer, "g", 1) == 0)
             {
                 printf("Client has decided to end the session. Stats:\n");
                 puts(time_text);
-                printf("Total of time for first half is: %ld for %d times for an avarage of %ld. \n", totClientTime_1, countFileSent, totClientTime_1 / countFileSent);
-                printf("Total of time for second half is: %ld for %d times for an avarage of %ld. \n", totClientTime_2, countFileSent, totClientTime_2 / countFileSent);
+                printf("Total of time for first half in file[%d] is: %ld for %d times for an avarage of %ld. \n", countFileSent, totClientTime_1, countFileSent, totClientTime_1 / countFileSent);
+                printf("Total of time for second half in file[%d] is: %ld for %d times for an avarage of %ld. \n", countFileSent, totClientTime_2, countFileSent, totClientTime_2 / countFileSent);
+                // close(clientSocket);
             }
             else
             {
                 countFileSent++;
+                puts("****************************************************");
                 goto restart;
             }
         }
