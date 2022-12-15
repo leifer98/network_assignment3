@@ -13,7 +13,7 @@
 
 #define SERVER_PORT 5062 // The port that the server listens
 #define BUFFER_SIZE 8192
-#define FILE_SIZE 1048576
+#define FILE_SIZE 1048575
 void addLongToString(char *str, long num)
 {
     char temp[20];
@@ -132,17 +132,21 @@ int main()
         int bytesReceived, amountRec = 0;
         while ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
         {
-            if (strncmp(buffer, "finish", 4) == 0)
+            if (strncmp(buffer, "done", 4) == 0)
             {
-                break;
+                printf("got done\n");
+                goto asd;
             }
             else
             {
-                printf("%d \n", amountRec);
+                // printf("%d \n", amountRec);
                 amountRec += bytesReceived;
                 bzero(buffer, BUFFER_SIZE);
             }
         }
+    asd:;
+        printf("asdasdasd %s \n", buffer);
+
         printf("recieves in total for first half: %d bytes \n", amountRec);
         // time capturing handling
         gettimeofday(&end, NULL);
@@ -197,20 +201,23 @@ int main()
 
         // waiting to recieve second part.
         /// problem here: !!!!!!!!!!!!!!!!!!!!!!!
-        memset(buffer, 0, BUFFER_SIZE);
+        bzero(buffer, BUFFER_SIZE);
         while ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
         {
-            if (strncmp(buffer, "finish", 4) == 0)
+            if (strncmp(buffer, "done", 4) == 0)
             {
-                break;
+                printf("Received %d bytes from client: %s\n", bytesReceived, buffer);
+                printf("got done\n");
+                goto dsa;
             }
             else
             {
-                printf("%s \n", buffer);
+                printf("Received %d bytes from client: %s\n", bytesReceived, buffer);
                 amountRec += bytesReceived;
                 bzero(buffer, BUFFER_SIZE);
             }
         }
+    dsa:;
         // time capturing handling
         gettimeofday(&end, NULL);
         tot = ((end.tv_sec * 1000000 + end.tv_usec) -

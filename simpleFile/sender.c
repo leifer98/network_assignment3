@@ -1,7 +1,3 @@
-/*
-        TCP/IP client
-*/
-
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netinet/in.h>
@@ -16,7 +12,7 @@
 
 #define SERVER_PORT 5062
 #define SERVER_IP_ADDRESS "127.0.0.1"
-#define FILE_SIZE 1048576
+#define FILE_SIZE 1048575
 #define BUFFER_SIZE 8192
 
 int main()
@@ -82,7 +78,7 @@ restart:
     int i = 0, len = 0;
     int amountSent = 0, b;
     char data[BUFFER_SIZE];
-    while (((b = fread(data, 1, sizeof data, file)) > 0) && (amountSent <= FILE_SIZE / 2))
+    while (((b = fread(data, 1, sizeof data, file)) > 0) && (amountSent < FILE_SIZE / 2))
     {
         if (send(sock, data, sizeof(data), 0) == -1)
         {
@@ -93,8 +89,9 @@ restart:
         amountSent += b;
         bzero(data, BUFFER_SIZE);
     }
-    char *message = "finish";
+    char *message = "done";
     int messageLen = strlen(message) + 1;
+    // message[messageLen] = '\0';
     int bytesSent = send(sock, message, messageLen, 0);
     if (bytesSent == -1)
     {
@@ -106,7 +103,7 @@ restart:
     // Sends message to server thats the first half finished
 
     // Receive data from server
-    puts("waiting for server to send authuntication...");
+    printf("waiting for server to send authuntication...\n");
     char bufferReply[BUFFER_SIZE] = {'\0'};
     int bytesReceived = recv(sock, bufferReply, BUFFER_SIZE, 0);
     if (bytesReceived == -1)
@@ -130,7 +127,7 @@ restart:
     }
     if (flag == 0)
     {
-        printf("wrong authntication!");
+        printf("wrong authntication!\n");
         close(sock);
         return 1;
     }
@@ -154,33 +151,37 @@ restart:
     // second half
     int oldamountSent = amountSent, g;
     bzero(data, BUFFER_SIZE);
-    while (((b = fread(data, 1, BUFFER_SIZE, file)) > 0) && (amountSent <= FILE_SIZE))
+    while (((b = fread(data, 1, BUFFER_SIZE, file)) > 0))
     {
         if ((g = send(sock, data, b, 0)) == -1)
         {
-            perror("ERROR! Sending has failed!\n");
+            printf("ERROR! Sending has failed!\n");
             exit(1);
         }
         printf("b: %d, g: %d \n", b, g);
         amountSent += b;
         bzero(data, BUFFER_SIZE);
     }
-    bytesSent = send(sock, message, messageLen, 0);
+    printf("amount sent in half2 is %d. \n", amountSent - oldamountSent);
+    fclose(file);
+    // sending msg done.
+    char *message2 = "done";
+    char replymsg[5] = {'d', 'o', 'n', 'e', '\0'};
+    // message2[messageLen2 - 1] = '\0';
+    bytesSent = send(sock, message2, 5, 0);
     if (bytesSent == -1)
     {
         printf("send() failed with error code : %d", errno);
         close(sock);
         return -1;
     }
-    printf("amount sent in half2 is %d. \n", amountSent - oldamountSent);
-    fclose(file);
 
     // USER DECISION
-    char buffer[BUFFER_SIZE];
+    char buffer[BUFFER_SIZE] = {'\0'};
     printf("Enter \"byebye\" to end session, enter anything else to restart process: \n");
     fgets(buffer, BUFFER_SIZE, stdin);
-     messageLen = strlen(buffer);
-     bytesSent = send(sock, buffer, BUFFER_SIZE, 0); // 4
+    messageLen = strlen(buffer);
+    bytesSent = send(sock, buffer, BUFFER_SIZE, 0); // 4
 
     if (bytesSent == -1)
     {
@@ -200,6 +201,7 @@ restart:
     }
     if (strncmp(buffer, "byebye", 4) != 0)
     {
+        bzero(buffer, BUFFER_SIZE);
         goto restart;
     }
     close(sock);
