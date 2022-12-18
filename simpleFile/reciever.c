@@ -11,7 +11,7 @@
 #include <time.h>
 #include <sys/time.h>
 
-#define SERVER_PORT 5064 // The port that the server listens
+#define SERVER_PORT 5065 // The port that the server listens
 #define BUFFER_SIZE 8192
 #define FILE_SIZE 1048575
 void addLongToString(char *str, long num)
@@ -41,7 +41,7 @@ int main()
     int ret = setsockopt(listeningSocket, SOL_SOCKET, SO_REUSEADDR, &enableReuse, sizeof(int));
     if (ret < 0)
     {
-        printf("setsockopt() failed with error code : %d", errno);
+        printf("setsockopt() failed with error code : %d \n", errno);
         return 1;
     }
 
@@ -105,7 +105,7 @@ int main()
         int countFileSent = 1;
 
     restart:
-        printf("This is round number %d to send file: ", countFileSent);
+        printf("This is round number %d to send file: \n", countFileSent);
 
         // code got changing CC algorithm
         char ccBuffer[256];
@@ -126,6 +126,7 @@ int main()
 
         // time capturing handling
         // Receive a message from client
+        printf("got here \n");
         char buffer[BUFFER_SIZE];
         bzero(buffer, BUFFER_SIZE);
         int bytesReceived, amountRec = 0;
@@ -157,9 +158,10 @@ int main()
         addLongToString(temp_str, tot);
         strcat(temp_str, "\n");
         strcat(time_text, temp_str);
+        int oldamount = amountRec;
         // Reply to client
-        puts("sending authuntication to client...\n");
-
+        int g = send(clientSocket, "end", 4, 0);
+        sleep(1);
         char *message = "1740887"; // = 207083353 XOR 206391054
         int messageLen = strlen(message) + 1;
 
@@ -179,7 +181,10 @@ int main()
         {
             printf("sent only %d bytes from the required %d.\n", messageLen, bytesSent);
         }
-
+        else
+        {
+            puts("sent authuntication to client...\n");
+        }
         // Changing to reno algorithm
         printf("Changed Congestion Control to Reno\n");
         strcpy(ccBuffer, "reno");
@@ -222,11 +227,12 @@ int main()
                (start.tv_sec * 1000000 + start.tv_usec));
         totClientTime_2 += tot;
 
-        printf("recieves in total for second half: %d bytes \n", amountRec);
+        printf("recieves in total for second half: %d bytes \n", amountRec - oldamount);
         char temp_str1[50] = "time taken in micro seconds for second half: ";
         addLongToString(temp_str1, tot);
         strcat(temp_str1, "\n");
         strcat(time_text, temp_str1);
+        g = send(clientSocket, "end", 4, 0);
 
         // USER DECISION
         printf("waiting for user decision...\n");

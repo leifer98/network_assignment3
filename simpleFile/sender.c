@@ -10,7 +10,7 @@
 #include <netinet/tcp.h>
 #include <time.h>
 
-#define SERVER_PORT 5064
+#define SERVER_PORT 5065
 #define SERVER_IP_ADDRESS "127.0.0.1"
 #define FILE_SIZE 1048575
 #define BUFFER_SIZE 8192
@@ -48,9 +48,9 @@ int main()
         close(sock);
         return -1;
     } // 3
-restart:
 
     printf("connected to server..\n");
+restart:
     // change to cubic CC algorithm
     char ccBuffer[256];
     printf("Changed Congestion Control to Cubic\n");
@@ -70,7 +70,6 @@ restart:
 
     // reads text until newline is encountered
     FILE *file;
-
     file = fopen("0.txt", "r");
     int amountSent = 0, b;
     char data[BUFFER_SIZE];
@@ -84,7 +83,7 @@ restart:
         amountSent += b;
         bzero(data, BUFFER_SIZE);
     }
-    printf("finished sending first half amount sent is: %d \n", amountSent);
+    printf("finished sending, first half amount sent is: %d \n", amountSent);
     char *message = "done";
     int bytesSent = send(sock, message, strlen(message) + 1, 0);
     if (bytesSent == -1)
@@ -93,9 +92,25 @@ restart:
         close(sock);
         return -1;
     }
-    // Sends message to server thats the first half finished
-    // Receive data from server
-    printf("waiting for server to send authuntication...\n");
+    printf("sent done \n");
+    int g = 0;
+    bzero(data, sizeof data);
+    while ((g = recv(sock, data, sizeof data, 0)) > 0)
+    {
+        sleep(0.1);
+        printf("Received %d bytes from client. decision is %s\n", g, data);
+
+        // check if got the "g" command from client, if yes, then exit and close the client socket
+        if (strncmp(data, "end", 3) == 0)
+        {
+            printf("got end continue the program \n");
+            break;
+        }
+        else
+        {
+            puts("****************************************************");
+        }
+    }
     char bufferReply[BUFFER_SIZE] = {'\0'};
     int bytesReceived = recv(sock, bufferReply, BUFFER_SIZE, 0);
     if (bytesReceived == -1)
@@ -142,10 +157,11 @@ restart:
 
     // second half
     int oldamountSent = amountSent;
-    int g;
+    g = 0;
     bzero(data, BUFFER_SIZE);
     while ((b = fread(data, 1, BUFFER_SIZE, file)) > 0)
     {
+        sleep(0.1);
         if ((g = send(sock, data, b, 0)) == -1)
         {
             printf("ERROR! Sending has failed!\n");
@@ -155,6 +171,7 @@ restart:
         // bzero(data, BUFFER_SIZE);
     }
     fclose(file);
+
     // sending msg done.
     char *message2 = "done";
     bytesSent = send(sock, message2, strlen(message2) + 1, 0);
@@ -165,13 +182,27 @@ restart:
         return -1;
     }
     printf("amount sent in half 2 is %d. \n", (amountSent - oldamountSent));
-
+    g = 0;
+    bzero(data, sizeof data);
+    while ((g = recv(sock, data, sizeof data, 0)) > 0)
+    {
+        printf("Received %d bytes from client. decision is %s\n", g, data);
+        if (strncmp(data, "end", 3) == 0)
+        {
+            printf("got end continue the program \n");
+            break;
+        }
+        else
+        {
+            puts("****************************************************");
+        }
+    }
     // USER DECISION
     char buffer[BUFFER_SIZE] = {0};
     printf("Enter \"g\" to end session, enter \"n\" restart process: \n");
-    fgets(buffer, BUFFER_SIZE, stdin);
-    buffer[strlen(buffer) - 1] = '\0';
-    bytesSent = send(sock, buffer, strlen(buffer) + 1, 0); // 4
+    fgets(buffer, 2, stdin);
+    // buffer[strlen(buffer) - 1] = '\0';
+    bytesSent = send(sock, buffer, 2, 0); // 4
 
     if (bytesSent == -1)
     {
