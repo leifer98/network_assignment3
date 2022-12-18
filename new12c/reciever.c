@@ -2,39 +2,39 @@
     TCP/IP-server
 */
 
-#include <arpa/inet.h>
+#include <stdio.h>
+
+// Linux and other UNIXes
 #include <errno.h>
 #include <netinet/in.h>
-#include <stdio.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <netinet/tcp.h>
-#include <time.h>
 
 #define SERVER_PORT 5060 // The port that the server listens
-#define BUFFER_SIZE 1024
+#define FILE_SIZE 1029120
+#define BUFFER_SIZE 8192
 
-
+void addLongToString(char *str, long num)
+{
+    char temp[20];
+    sprintf(temp, "%ld", num);
+    strcat(str, temp);
+}
 
 int main()
 {
-    // signal(SIGPIPE, SIG_IGN);  // on linux to prevent crash on closing socket
-    char time_text[100000] = "";
-    // Open the listening (server) socket
+
     int listeningSocket = -1;
-    listeningSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); // 0 means default protocol for stream sockets (Equivalently, IPPROTO_TCP)
+    listeningSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (listeningSocket == -1)
     {
         printf("Could not create listening socket : %d", errno);
         return 1;
     }
-
-    // Reuse the address if the server socket on was closed
-    // and remains for 45 seconds in TIME-WAIT state till the final removal.
-    //
     int enableReuse = 1;
     int ret = setsockopt(listeningSocket, SOL_SOCKET, SO_REUSEADDR, &enableReuse, sizeof(int));
     if (ret < 0)
@@ -42,18 +42,13 @@ int main()
         printf("setsockopt() failed with error code : %d", errno);
         return 1;
     }
-
-    // "sockaddr_in" is the "derived" from sockaddr structure
-    // used for IPv4 communication. For IPv6, use sockaddr_in6
-    //
     struct sockaddr_in serverAddress;
     memset(&serverAddress, 0, sizeof(serverAddress));
 
     serverAddress.sin_family = AF_INET;
-    serverAddress.sin_addr.s_addr = INADDR_ANY;  // any IP at this port (Address to accept any incoming messages)
-    serverAddress.sin_port = htons(SERVER_PORT); // network order (makes byte order consistent)
+    serverAddress.sin_addr.s_addr = INADDR_ANY;
+    serverAddress.sin_port = htons(SERVER_PORT);
 
-    // Bind the socket to the port with any IP at this port
     int bindResult = bind(listeningSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
     if (bindResult == -1)
     {
@@ -63,11 +58,6 @@ int main()
         return -1;
     }
 
-    printf("Bind() success\n");
-
-    // Make the socket listening; actually mother of all client sockets.
-    // 500 is a Maximum size of queue connection requests
-    // number of concurrent connections
     int listenResult = listen(listeningSocket, 3);
     if (listenResult == -1)
     {
@@ -78,160 +68,62 @@ int main()
     }
 
     // Accept and incoming connection
+    printf("Waiting for incoming TCP-connections...\n");
     struct sockaddr_in clientAddress; //
     socklen_t clientAddressLen = sizeof(clientAddress);
 
     while (1)
     {
-        printf("Waiting for incoming TCP-connections...\n");
-
-
+        printf("waiting..\n");
         memset(&clientAddress, 0, sizeof(clientAddress));
         clientAddressLen = sizeof(clientAddress);
         int clientSocket = accept(listeningSocket, (struct sockaddr *)&clientAddress, &clientAddressLen);
         if (clientSocket == -1)
         {
-            printf("listen failed with error code : %d\n", errno);
+            printf("listen failed with error code : %d", errno);
             // close the sockets
             close(listeningSocket);
             return -1;
         }
+
         printf("A new client connection accepted\n");
-    restart:
-        puts("");
 
-        // code got changing CC algorithm
-        char ccBuffer[256];
-        printf("Changed Congestion Control to Cubic\n");
-        strcpy(ccBuffer, "cubic");
-        socklen_t socklen = strlen(ccBuffer);
-        if (setsockopt(listeningSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, socklen) != 0)
-        {
-            perror("ERROR! socket setting failed!");
-            return -1;
-        }
-        socklen = sizeof(ccBuffer);
-        if (getsockopt(listeningSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, &socklen) != 0)
-        {
-            perror("ERROR! socket getting failed!");
-            return -1;
-        }
-
-        // time capturing handling
-        time_t start = time(0);
-
-
-        // Receive a message from client
+        // Receive first half of the file from client
         char buffer[BUFFER_SIZE];
         memset(buffer, 0, BUFFER_SIZE);
-        int bytesReceived;
-        int count = 0;
-        while ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
+        int bytesReceived, amountRec = 0, chunkIndex = 1;
+        while (((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0) && (amountRec < (FILE_SIZE / 2)))
         {
-            // printf("Received %d bytes from client. chunk number %d\n", bytesReceived, count);
-            // if (count == 300)
-            //     puts(buffer);
-            // check if got the "exit" command from client, if yes, then exit and close the client socket
-            if (strncmp(buffer, "1", 1) == 0)
+            amountRec += bytesReceived;
+            bzero(buffer, BUFFER_SIZE);
+
+            // Reply to client
+            char approval[BUFFER_SIZE] = "chunk approved, chunk number ";
+            addLongToString(approval, chunkIndex);
+            int messageLen = strlen(approval) + 1;
+
+            int bytesSent = send(clientSocket, approval, messageLen, 0);
+            if (bytesSent == -1)
             {
-                printf("Client has sended the first half of the file in %d chunks\n", count);
-                break;
+                printf("send() failed with error code : %d", errno);
+                close(listeningSocket);
+                close(clientSocket);
+                return -1;
             }
-            memset(buffer, 0, BUFFER_SIZE);
-            // puts(buffer);
-            count++;
-        }
-
-        // time capturing handling
-        time_t end = time(0);
-        time_t first_half_time = start - end;
-
-
-        // Reply to client
-        puts("sending authuntication to client...\n");
-
-        char *message = "1234";
-        int messageLen = strlen(message) + 1;
-
-        int bytesSent = send(clientSocket, message, messageLen, 0);
-        if (bytesSent == -1)
-        {
-            printf("send() failed with error code : %d", errno);
-            close(listeningSocket);
-            close(clientSocket);
-            return -1;
-        }
-        else if (bytesSent == 0)
-        {
-            printf("peer has closed the TCP connection prior to send().\n");
-        }
-        else if (bytesSent < messageLen)
-        {
-            printf("sent only %d bytes from the required %d.\n", messageLen, bytesSent);
-        }
-
-        // Changing to reno algorithm
-        printf("Changed Congestion Control to Reno\n");
-        strcpy(ccBuffer, "reno");
-        socklen = strlen(ccBuffer);
-        if (setsockopt(listeningSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, socklen) != 0)
-        {
-            perror("ERROR! socket setting failed!");
-            return -1;
-        }
-        socklen = sizeof(ccBuffer);
-        if (getsockopt(listeningSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, &socklen) != 0)
-        {
-            perror("ERROR! socket getting failed!");
-            return -1;
-        }
-
-        // time capturing handling
-        start = time(0);
-
-        // waiting to recieve second part.
-        memset(buffer, 0, BUFFER_SIZE);
-        int oldCount = count;
-        while ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
-        {
-            // printf("Received %d bytes from client. chunk number %d\n", bytesReceived, count);
-            // if (count == 900)
-            //     puts(buffer);
-            // check if got the "exit" command from client, if yes, then exit and close the client socket
-            if (strncmp(buffer, "2", 1) == 0)
+            else if (bytesSent == 0)
             {
-                printf("Client has sended the second half of the file in %d chunks\n", (count - oldCount));
-                break;
+                printf("peer has closed the TCP connection prior to send().\n");
             }
-            memset(buffer, 0, BUFFER_SIZE);
-            // puts(buffer);
-            count++;
+            else if (bytesSent < messageLen)
+            {
+                printf("sent only %d bytes from the required %d.\n", messageLen, bytesSent);
+            }
+            printf("recieved chunk number %d, with %d bytes, and recieved approval for chunk number %d\n", chunkIndex, bytesReceived, chunkIndex);
+            chunkIndex++;
         }
 
-        // time capturing handling
-        end = time(0);
-        time_t second_half_time = start - end;
-
-
-        // USER DECISION
-        puts("waiting for user decision...");
-        memset(buffer, 0, BUFFER_SIZE);
-        if ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
-        {
-            printf("Received %d bytes from client. decision is %s\n", bytesReceived, buffer);
-
-            // check if got the "byebye" command from client, if yes, then exit and close the client socket
-            if (strncmp(buffer, "byebye", 4) == 0)
-            {
-                printf("Client has decided to end the session.\n");
-            }
-            else
-            {
-                goto restart;
-            }
-        }
+        printf("finished recieving first half amount recieved is: %d \n", amountRec);
     }
-    puts(time_text);
 
     close(listeningSocket);
 
