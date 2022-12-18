@@ -17,86 +17,98 @@
 
 int main()
 {
-    int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); // 1
-    if (sock == -1)
+    // Creating new socket
+    int SendingSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); // 1
+    if (SendingSocket == -1)
     {
         printf("Could not create socket : %d", errno);
-        return -1;
+        goto end;
     }
-
     // "sockaddr_in" is the "derived" from sockaddr structure
     // used for IPv4 communication. For IPv6, use sockaddr_in6
     struct sockaddr_in serverAddress;
     memset(&serverAddress, 0, sizeof(serverAddress));
-
     serverAddress.sin_family = AF_INET;
-    serverAddress.sin_port = htons(SERVER_PORT);                                             // (5001 = 0x89 0x13) little endian => (0x13 0x89) network endian (big endian)
-    int rval = inet_pton(AF_INET, (const char *)SERVER_IP_ADDRESS, &serverAddress.sin_addr); // convert IPv4 and IPv6 addresses from text to binary form
-    // e.g. 127.0.0.1 => 0x7f000001 => 01111111.00000000.00000000.00000001 => 2130706433
+    serverAddress.sin_port = htons(SERVER_PORT);
+    // convert IPv4 and IPv6 addresses from text to binary form
+    int rval = inet_pton(AF_INET, (const char *)SERVER_IP_ADDRESS, &serverAddress.sin_addr);
     if (rval <= 0)
     {
         printf("inet_pton() failed");
-        return -1;
-    } // 2
-
+        goto end;
+    }
     // Make a connection to the server with socket SendingSocket.
-    int connectResult = connect(sock, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+    int connectResult = connect(SendingSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
     if (connectResult == -1)
     {
         printf("connect() failed with error code : %d", errno);
         // cleanup the socket;
-        close(sock);
-        return -1;
-    } // 3
-
+        close(SendingSocket);
+        goto end;
+    }
     printf("connected to server..\n");
 restart:
-    // change to cubic CC algorithm
+    // Changing to cubic CC algorithm
     char ccBuffer[256];
-    printf("Changed Congestion Control to Cubic\n");
     strcpy(ccBuffer, "cubic");
     socklen_t socklen = strlen(ccBuffer);
-    if (setsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, socklen) != 0)
+    if (setsockopt(SendingSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, socklen) != 0)
     {
         perror("ERROR! socket setting failed!");
-        return -1;
+        goto end;
     }
     socklen = sizeof(ccBuffer);
-    if (getsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, &socklen) != 0)
+    if (getsockopt(SendingSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, &socklen) != 0)
     {
         perror("ERROR! socket getting failed!");
-        return -1;
+        goto end;
     }
+    printf("Changed Congestion Control to Cubic\n");
 
-    // reads first half of file
     FILE *file;
     file = fopen("0.txt", "r");
-    int amountSent = 0, b;
-    char data1[FILE_SIZE / 2];
-    char data2[FILE_SIZE / 2];
-    b = fread(data1, 1, sizeof(data1), file);
-    if (b < 0)
-    {
-        printf("fread failed loading.");
-        close(sock);
-        return -1;
-    }
-    amountSent += b;
-    fclose(file);
-    int oldamountSent = amountSent;
+    int amountSent = 0, bytesRead;
+    char data1[FILE_SIZE / 2] = {0};
+    char data2[FILE_SIZE / 2] = {0};
 
-    if (send(sock, data1, sizeof(data1), 0) == -1)
+    // Reads first half of file
+    bytesRead = fread(data1, 1, sizeof(data1), file);
+    if (bytesRead < 0)
+    {
+        printf("fread failed loading.\n");
+        goto end;
+    }
+    else if (bytesRead == 0)
+    {
+        printf("fread 0 bytes!!\n");
+    }
+    else
+    {
+        printf("fread %d bytes.\n", bytesRead);
+    }
+    // Sending first half of file
+    if ((amountSent = send(SendingSocket, data1, sizeof(data1), 0)) == -1)
     {
         printf("ERROR! Sending has failed!\n");
-        return -1;
+        goto end;
     }
-    // getting authentication and confirming it
+    else if (amountSent == 0)
+    {
+        printf("ERROR! Sending only 0.\n");
+        goto end;
+    }
+    else
+    {
+        printf("sent %d bytes\n", bytesRead);
+    }
+
+    // Getting authentication message
     char bufferReply[BUFFER_SIZE] = {'\0'};
-    int bytesReceived = recv(sock, bufferReply, BUFFER_SIZE, 0);
+    int bytesReceived = recv(SendingSocket, bufferReply, BUFFER_SIZE, 0);
     if (bytesReceived == -1)
     {
         printf("recv() failed with error code.");
-        return -1;
+        goto end;
     }
     else if (bytesReceived == 0)
     {
@@ -107,51 +119,68 @@ restart:
     {
         printf("received %d bytes from server. reply: %s\n", bytesReceived, bufferReply);
     }
-    // check for authentication
+    // Checking authentication
     char * xor = "1740887";
     if (strcmp(xor, bufferReply) != 0)
     {
+        printf("inccorect autheritication\n");
         goto end;
     }
-
-    // code got changing CC algorithm
-    // Changing to reno algorithm
-    printf("Changed Congestion Control to Reno\n");
+    // Changing to reno CC algorithm
     strcpy(ccBuffer, "reno");
     socklen = strlen(ccBuffer);
-    if (setsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, socklen) != 0)
+    if (setsockopt(SendingSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, socklen) != 0)
     {
-        perror("ERROR! socket setting failed!");
+        printf("ERROR! socket setting failed!\n");
         return -1;
     }
     socklen = sizeof(ccBuffer);
-    if (getsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, &socklen) != 0)
+    if (getsockopt(SendingSocket, IPPROTO_TCP, TCP_CONGESTION, ccBuffer, &socklen) != 0)
     {
-        perror("ERROR! socket getting failed!");
-        return -1;
+        printf("ERROR! socket getting failed!\n");
+        goto end;
     }
-
+    printf("Changed Congestion Control to Reno\n");
     // reads second half of file
-    file = fopen("0.txt", "r");
-    amountSent = 0;
-    b = fread(data1, 1, sizeof(data1), file);
-    if (b < 0)
+    bytesRead = fread(data2, 1, sizeof(data2), file);
+    if (bytesRead < 0)
     {
-        printf("fread failed loading.");
-        close(sock);
+        printf("fread failed loading.\n");
+        close(SendingSocket);
         return -1;
     }
-    amountSent += b;
+    else if (bytesRead == 0)
+    {
+        printf("fread 0 bytes!!\n");
+    }
+    else
+    {
+        printf("fread %d bytes.\n", bytesRead);
+    }
     fclose(file);
-    printf("amount sent in half 2 is %d. \n", (amountSent));
+    amountSent = 0;
+    // Sending 2nd half of file
+    if ((amountSent = send(SendingSocket, data2, sizeof(data2), 0)) == -1)
+    {
+        printf("ERROR! Sending has failed!\n");
+        return -1;
+    }
+    else if (amountSent == 0)
+    {
+        printf("ERROR! Sending only 0.\n");
+        return -1;
+    }
+    else
+    {
+        printf("sent %d bytes\n", bytesRead);
+    }
+    printf("Sent in half 2  %d bytes \n", amountSent);
 
     // USER DECISION
     char buffer[BUFFER_SIZE] = {0};
     printf("Enter \"stop\" to end session:\n");
-    fgets(buffer, 2, stdin);
-    // buffer[strlen(buffer) - 1] = '\0';
-    int bytesSent = send(sock, buffer, 2, 0); // 4
-
+    fgets(buffer, BUFFER_SIZE, stdin);
+    int bytesSent = send(SendingSocket, buffer, BUFFER_SIZE, 0); // 4
     if (bytesSent == -1)
     {
         printf("send() failed with error code : %d", errno);
@@ -160,9 +189,9 @@ restart:
     {
         printf("peer has closed the TCP connection prior to send().\n");
     }
-    else if (bytesSent < strlen(buffer) + 1)
+    else if (bytesSent < strlen(buffer))
     {
-        printf("sent only %d bytes from the required %d.\n", BUFFER_SIZE, bytesSent);
+        printf("sent only %d bytes\n", bytesSent);
     }
     else
     {
@@ -171,10 +200,10 @@ restart:
     if (strncmp(buffer, "stop", 4) != 0)
     {
         bzero(buffer, BUFFER_SIZE);
-        puts("****************************************************");
+        printf("****************************************************");
         goto restart;
     }
 end:;
-    close(sock);
+    close(SendingSocket);
     return 0;
 }
