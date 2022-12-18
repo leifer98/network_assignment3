@@ -11,7 +11,7 @@
 #include <time.h>
 #include <sys/time.h>
 
-#define SERVER_PORT 5064 // The port that the server listens
+#define SERVER_PORT 5065 // The port that the server listens
 #define BUFFER_SIZE 8192
 #define FILE_SIZE 1048575
 void addLongToString(char *str, long num)
@@ -41,7 +41,7 @@ int main()
     int ret = setsockopt(listeningSocket, SOL_SOCKET, SO_REUSEADDR, &enableReuse, sizeof(int));
     if (ret < 0)
     {
-        printf("setsockopt() failed with error code : %d", errno);
+        printf("setsockopt() failed with error code : %d \n", errno);
         return 1;
     }
 
@@ -79,14 +79,12 @@ int main()
         return -1;
     }
 
-    // Accept and incoming connection
+    // Accept incoming connections
     struct sockaddr_in clientAddress; //
     socklen_t clientAddressLen = sizeof(clientAddress);
-
     while (1)
     {
         printf("Waiting for incoming TCP-connections...\n");
-
         memset(&clientAddress, 0, sizeof(clientAddress));
         clientAddressLen = sizeof(clientAddress);
         int clientSocket = accept(listeningSocket, (struct sockaddr *)&clientAddress, &clientAddressLen);
@@ -105,7 +103,7 @@ int main()
         int countFileSent = 1;
 
     restart:
-        printf("This is round number %d to send file: ", countFileSent);
+        printf("This is round number %d to send file: \n", countFileSent);
 
         // code got changing CC algorithm
         char ccBuffer[256];
@@ -123,46 +121,34 @@ int main()
             perror("ERROR! socket getting failed!");
             return -1;
         }
-
         // time capturing handling
-        // Receive a message from client
+        // printf("got here \n");
         char buffer[BUFFER_SIZE];
         bzero(buffer, BUFFER_SIZE);
-        int bytesReceived, amountRec = 0;
+        int bytesReceived = 0, amountRec = 0;
         gettimeofday(&start, NULL);
         while ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
         {
-            if (strstr(buffer, "one") != NULL)
-            {
-                printf("Received %d bytes from client: %s\n", bytesReceived, buffer);
-                printf("got done\n");
-                goto asd;
-            }
-            else
-            {
-                // printf("Received %d bytes from client: %s\n", bytesReceived, buffer);
-                amountRec += bytesReceived;
-                bzero(buffer, BUFFER_SIZE);
-            }
+            // printf("Received %d bytes from client: %s\n", bytesReceived, buffer);
+            amountRec += bytesReceived;
+            printf("%d\n", amountRec);
+            if (amountRec >= FILE_SIZE / 2)
+                break;
+            bzero(buffer, BUFFER_SIZE);
         }
-    asd:;
         gettimeofday(&end, NULL);
-        printf("recieves in total for first half: %d bytes \n", amountRec);
-        // time capturing handling
+        printf("recieved in total for first half: %d bytes \n", amountRec);
         tot = ((end.tv_sec * 1000000 + end.tv_usec) -
                (start.tv_sec * 1000000 + start.tv_usec));
         totClientTime_1 += tot;
-        // printf("time taken in micro seconds: %ld \n", tot);
         char temp_str[50] = "time taken in micro seconds for first half: ";
         addLongToString(temp_str, tot);
         strcat(temp_str, "\n");
         strcat(time_text, temp_str);
+        int oldamount = amountRec;
         // Reply to client
-        puts("sending authuntication to client...\n");
-
         char *message = "1740887"; // = 207083353 XOR 206391054
         int messageLen = strlen(message) + 1;
-
         int bytesSent = send(clientSocket, message, messageLen, 0);
         if (bytesSent == -1)
         {
@@ -179,7 +165,10 @@ int main()
         {
             printf("sent only %d bytes from the required %d.\n", messageLen, bytesSent);
         }
-
+        else
+        {
+            printf("sent authuntication to client.\n");
+        }
         // Changing to reno algorithm
         printf("Changed Congestion Control to Reno\n");
         strcpy(ccBuffer, "reno");
@@ -195,33 +184,21 @@ int main()
             perror("ERROR! socket getting failed!");
             return -1;
         }
-        // time capturing handling
-
         // waiting to recieve second part.
         bzero(buffer, BUFFER_SIZE);
+        amountRec = 0;
         gettimeofday(&start, NULL);
         while ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
         {
-            if (strstr(buffer, "one") != NULL)
-            {
-                printf("Received %d bytes from client: %s\n", bytesReceived, buffer);
-                printf("got done\n");
-                goto dsa;
-            }
-            else
-            {
-                // printf("Received %d bytes from client: %s\n", bytesReceived, buffer);
-                amountRec += bytesReceived;
-                bzero(buffer, BUFFER_SIZE);
-            }
+            amountRec += bytesReceived;
+            printf("%d\n", amountRec);
+            if (amountRec >= FILE_SIZE / 2)
+                break;
+            bzero(buffer, BUFFER_SIZE);
         }
-    dsa:;
-        // time capturing handling
         gettimeofday(&end, NULL);
-        tot = ((end.tv_sec * 1000000 + end.tv_usec) -
-               (start.tv_sec * 1000000 + start.tv_usec));
+        tot = ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec));
         totClientTime_2 += tot;
-
         printf("recieves in total for second half: %d bytes \n", amountRec);
         char temp_str1[50] = "time taken in micro seconds for second half: ";
         addLongToString(temp_str1, tot);
@@ -234,9 +211,8 @@ int main()
         if ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0)
         {
             printf("Received %d bytes from client. decision is %s\n", bytesReceived, buffer);
-
-            // check if got the "g" command from client, if yes, then exit and close the client socket
-            if (strncmp(buffer, "g", 1) == 0)
+            // check if we got the "stop" command from client, if yes, then exit and close the client socket
+            if (strncmp(buffer, "stop", 4) == 0)
             {
                 printf("Client has decided to end the session. Stats:\n");
                 puts(time_text);
@@ -247,7 +223,7 @@ int main()
             else
             {
                 countFileSent++;
-                puts("****************************************************");
+                puts("*************************continue***************************");
                 goto restart;
             }
         }
